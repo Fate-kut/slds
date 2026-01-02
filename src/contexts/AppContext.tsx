@@ -1,11 +1,11 @@
 /**
  * Application Context Provider
  * Manages global state for the Smart Locker Desk System
- * Provides authentication, locker control, exam mode, and logging functionality
+ * Provides authentication, locker control, exam mode, notifications, and logging functionality
  */
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { User, Locker, LogEntry, DeskMode, LoginCredentials } from '@/types';
+import { User, Locker, LogEntry, DeskMode, LoginCredentials, Notification, NotificationType } from '@/types';
 import { initialUsers, initialLockers, userCredentials } from '@/data/initialData';
 
 /**
@@ -28,6 +28,8 @@ interface AppContextType {
   deskMode: DeskMode;
   // Activity log entries
   logs: LogEntry[];
+  // Student notifications
+  notifications: Notification[];
   // Authentication functions
   login: (credentials: LoginCredentials) => { success: boolean; error?: string };
   logout: () => void;
@@ -41,6 +43,9 @@ interface AppContextType {
   // Desk actions
   performResearch: () => { success: boolean; message: string };
   performExamAction: () => { success: boolean; message: string };
+  // Notification functions
+  markNotificationRead: (notificationId: string) => void;
+  clearNotifications: () => void;
 }
 
 // Create context with undefined default
@@ -70,6 +75,9 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   
   // Activity log - stores all system actions for auditing
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  
+  // Student notifications
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   /**
    * Add a new entry to the activity log
@@ -86,6 +94,46 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       details,
     };
     setLogs(prevLogs => [newLog, ...prevLogs]);
+  }, []);
+
+  /**
+   * Add a notification for students
+   * Used to alert about exam mode changes and locker status
+   */
+  const addNotification = useCallback((
+    type: NotificationType,
+    title: string,
+    message: string,
+    targetStudentId?: string
+  ) => {
+    const newNotification: Notification = {
+      id: generateId(),
+      type,
+      title,
+      message,
+      timestamp: new Date(),
+      read: false,
+    };
+    
+    // If targetStudentId is provided, only add if current user matches
+    // Otherwise, add for all students (broadcast)
+    setNotifications(prev => [newNotification, ...prev]);
+  }, []);
+
+  /**
+   * Mark a notification as read
+   */
+  const markNotificationRead = useCallback((notificationId: string) => {
+    setNotifications(prev =>
+      prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+    );
+  }, []);
+
+  /**
+   * Clear all notifications
+   */
+  const clearNotifications = useCallback(() => {
+    setNotifications([]);
   }, []);
 
   /**
@@ -162,12 +210,18 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       prevLockers.map(locker => {
         if (locker.id === lockerId && locker.status === 'unlocked') {
           addLog('LOCKER_LOCK', `Teacher locked ${locker.id} (${locker.studentName}'s locker)`, currentUser);
+          // Add notification for the student whose locker was locked
+          addNotification(
+            'locker_locked',
+            'Locker Locked',
+            `Your locker (${locker.location}) has been locked by a teacher.`
+          );
           return { ...locker, status: 'locked' };
         }
         return locker;
       })
     );
-  }, [currentUser, addLog]);
+  }, [currentUser, addLog, addNotification]);
 
   /**
    * Unlock a specific locker (teacher function)
@@ -213,9 +267,17 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         `Teacher ${newMode ? 'enabled' : 'disabled'} exam mode`,
         currentUser
       );
+      // Add notification for students about exam mode change
+      addNotification(
+        'exam_mode',
+        newMode ? 'Exam Mode Enabled' : 'Exam Mode Disabled',
+        newMode 
+          ? 'Research and internet access has been disabled. Only exam-related actions are permitted.'
+          : 'Normal mode restored. Research and internet access is now available.'
+      );
       return newMode;
     });
-  }, [currentUser, addLog]);
+  }, [currentUser, addLog, addNotification]);
 
   /**
    * Perform research action (simulated internet/research access)
@@ -264,6 +326,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     examMode,
     deskMode,
     logs,
+    notifications,
     login,
     logout,
     toggleLocker,
@@ -273,6 +336,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     toggleExamMode,
     performResearch,
     performExamAction,
+    markNotificationRead,
+    clearNotifications,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

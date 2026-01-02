@@ -8,6 +8,7 @@ import React from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from './StatusBadge';
+import NotificationBell from './NotificationBell';
 import { LogOut, Shield, User, GraduationCap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -53,6 +54,11 @@ export const Header: React.FC<HeaderProps> = ({ className }) => {
                 size="md"
                 className="animate-pulse-glow"
               />
+            )}
+            
+            {/* Notification bell for students */}
+            {currentUser.role === 'student' && (
+              <NotificationBell />
             )}
             
             {/* User badge */}
