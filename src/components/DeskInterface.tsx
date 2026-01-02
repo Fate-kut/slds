@@ -8,7 +8,7 @@ import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from './StatusBadge';
-import { SimulatedBrowser } from './SimulatedBrowser';
+import { ResearchBrowser } from './ResearchBrowser';
 import { useApp } from '@/contexts/AppContext';
 import { 
   Monitor, 
@@ -34,7 +34,7 @@ export const DeskInterface: React.FC = () => {
 
   /**
    * Handle research action button click
-   * Opens the simulated browser if not in exam mode
+   * Opens the real research browser if not in exam mode
    */
   const handleResearch = () => {
     const result = performResearch();
@@ -197,9 +197,9 @@ export const DeskInterface: React.FC = () => {
         )}
       </CardContent>
 
-      {/* Simulated browser overlay */}
+      {/* Research browser overlay - real web access */}
       {showBrowser && (
-        <SimulatedBrowser onClose={() => setShowBrowser(false)} />
+        <ResearchBrowser onClose={() => setShowBrowser(false)} />
       )}
     </Card>
   );
