@@ -5,9 +5,10 @@
  */
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from './StatusBadge';
+import { SimulatedBrowser } from './SimulatedBrowser';
 import { useApp } from '@/contexts/AppContext';
 import { 
   Monitor, 
@@ -29,18 +30,20 @@ import { toast } from 'sonner';
 export const DeskInterface: React.FC = () => {
   const { examMode, performResearch, performExamAction } = useApp();
   const [lastAction, setLastAction] = useState<{ success: boolean; message: string } | null>(null);
+  const [showBrowser, setShowBrowser] = useState(false);
 
   /**
    * Handle research action button click
-   * This will be blocked during exam mode
+   * Opens the simulated browser if not in exam mode
    */
   const handleResearch = () => {
     const result = performResearch();
     setLastAction(result);
     
     if (result.success) {
+      setShowBrowser(true);
       toast.success('Research Access Granted', {
-        description: 'You can now browse academic resources.',
+        description: 'Opening academic browser...',
       });
     } else {
       toast.error('Action Blocked', {
@@ -193,6 +196,11 @@ export const DeskInterface: React.FC = () => {
           </div>
         )}
       </CardContent>
+
+      {/* Simulated browser overlay */}
+      {showBrowser && (
+        <SimulatedBrowser onClose={() => setShowBrowser(false)} />
+      )}
     </Card>
   );
 };
