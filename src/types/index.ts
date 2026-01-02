@@ -50,10 +50,24 @@ export interface LoginCredentials {
   pin: string;
 }
 
+// Notification types for student alerts
+export type NotificationType = 'exam_mode' | 'locker_locked' | 'locker_unlocked' | 'info';
+
+// Notification interface - represents alerts shown to students
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  timestamp: Date;
+  read: boolean;
+}
+
 // System state interface - global application state
 export interface SystemState {
   examMode: boolean;
   users: User[];
   lockers: Locker[];
   logs: LogEntry[];
+  notifications: Notification[];
 }
