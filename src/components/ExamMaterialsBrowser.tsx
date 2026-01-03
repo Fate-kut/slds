@@ -21,11 +21,26 @@ import {
   ChevronLeft,
   GraduationCap,
   Lightbulb,
-  CheckCircle2
+  CheckCircle2,
+  FlaskConical,
+  BookText,
+  History,
+  Filter
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { firecrawlApi } from '@/lib/api/firecrawl';
+import { Badge } from '@/components/ui/badge';
+
+type SubjectCategory = 'all' | 'math' | 'science' | 'english' | 'history';
+
+const subjectCategories: { id: SubjectCategory; name: string; icon: React.ReactNode; keywords: string }[] = [
+  { id: 'all', name: 'All Subjects', icon: <BookOpen size={14} />, keywords: '' },
+  { id: 'math', name: 'Math', icon: <Calculator size={14} />, keywords: 'mathematics algebra calculus geometry statistics' },
+  { id: 'science', name: 'Science', icon: <FlaskConical size={14} />, keywords: 'science physics chemistry biology' },
+  { id: 'english', name: 'English', icon: <BookText size={14} />, keywords: 'english literature grammar writing essay' },
+  { id: 'history', name: 'History', icon: <History size={14} />, keywords: 'history historical events civilization' },
+];
 
 type ExamMaterialsBrowserProps = {
   onClose: () => void;
@@ -86,6 +101,7 @@ export const ExamMaterialsBrowser: React.FC<ExamMaterialsBrowserProps> = ({ onCl
   const [currentContent, setCurrentContent] = useState<SearchResult | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('home');
   const [error, setError] = useState<string | null>(null);
+  const [selectedSubject, setSelectedSubject] = useState<SubjectCategory>('all');
 
   /**
    * Search for exam materials using Firecrawl
@@ -103,8 +119,9 @@ export const ExamMaterialsBrowser: React.FC<ExamMaterialsBrowserProps> = ({ onCl
     setViewMode('results');
 
     try {
-      // Add educational context to searches
-      const educationalQuery = `${searchTerm} educational resource study guide`;
+      // Add educational context and subject filter to searches
+      const subjectKeywords = subjectCategories.find(s => s.id === selectedSubject)?.keywords || '';
+      const educationalQuery = `${searchTerm} ${subjectKeywords} educational resource study guide`.trim();
       const response = await firecrawlApi.search(educationalQuery, {
         limit: 8,
         scrapeOptions: { formats: ['markdown'] },
@@ -177,6 +194,7 @@ export const ExamMaterialsBrowser: React.FC<ExamMaterialsBrowserProps> = ({ onCl
       setViewMode('home');
       setResults([]);
       setSearchQuery('');
+      setSelectedSubject('all');
     }
   };
 
@@ -195,11 +213,37 @@ export const ExamMaterialsBrowser: React.FC<ExamMaterialsBrowserProps> = ({ onCl
         </p>
       </div>
 
+      {/* Subject filters */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Filter size={14} />
+          <span>Filter by subject:</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {subjectCategories.map((subject) => (
+            <Badge
+              key={subject.id}
+              variant={selectedSubject === subject.id ? 'default' : 'outline'}
+              className={cn(
+                'cursor-pointer transition-colors flex items-center gap-1.5 px-3 py-1.5',
+                selectedSubject === subject.id 
+                  ? 'bg-primary text-primary-foreground' 
+                  : 'hover:bg-muted'
+              )}
+              onClick={() => setSelectedSubject(subject.id)}
+            >
+              {subject.icon}
+              {subject.name}
+            </Badge>
+          ))}
+        </div>
+      </div>
+
       {/* Search bar */}
       <div className="flex gap-2">
         <Input
           type="text"
-          placeholder="Search for study materials..."
+          placeholder={`Search ${selectedSubject === 'all' ? 'all' : selectedSubject} materials...`}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
