@@ -28,18 +28,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify the JWT token with Supabase
+    // Verify the JWT token with Supabase - pass auth header to client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
+      global: {
+        headers: { Authorization: authHeader },
       },
     });
 
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
       console.error('Auth error:', authError?.message || 'User not found');
