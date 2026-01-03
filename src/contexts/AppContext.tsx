@@ -1,89 +1,53 @@
 /**
  * Application Context Provider
  * Manages global state for the Smart Locker Desk System
- * Provides authentication, locker control, exam mode, notifications, and logging functionality
+ * Authentication is handled separately by AuthContext
  */
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { User, Locker, LogEntry, DeskMode, LoginCredentials, Notification, NotificationType } from '@/types';
-import { initialUsers, initialLockers, userCredentials } from '@/data/initialData';
+import { Locker, LogEntry, DeskMode, Notification, NotificationType } from '@/types';
+import { initialLockers } from '@/data/initialData';
+import { useAuth, UserProfile } from '@/contexts/AuthContext';
 
-/**
- * Generate simple unique IDs without external dependencies
- * Uses random string generation for unique identifiers
- */
 const generateId = (): string => {
   return Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
 };
 
-// Context interface defining all available actions and state
 interface AppContextType {
-  // Current authenticated user (null if not logged in)
-  currentUser: User | null;
-  // All lockers in the system
+  currentUser: UserProfile | null;
   lockers: Locker[];
-  // Global exam mode status
   examMode: boolean;
-  // Current desk mode for the active user
   deskMode: DeskMode;
-  // Activity log entries
   logs: LogEntry[];
-  // Student notifications
   notifications: Notification[];
-  // Authentication functions
-  login: (credentials: LoginCredentials) => { success: boolean; error?: string };
   logout: () => void;
-  // Locker control functions
   toggleLocker: (lockerId: string) => void;
   lockAllLockers: () => void;
   unlockLocker: (lockerId: string) => void;
   lockLocker: (lockerId: string) => void;
-  // Exam mode control (teacher only)
   toggleExamMode: () => void;
-  // Desk actions
   performResearch: () => { success: boolean; message: string };
   performExamAction: () => { success: boolean; message: string };
-  // Notification functions
   markNotificationRead: (notificationId: string) => void;
   clearNotifications: () => void;
 }
 
-// Create context with undefined default
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// Provider component props
 interface AppProviderProps {
   children: ReactNode;
 }
 
-/**
- * AppProvider Component
- * Wraps the application and provides global state management
- */
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
-  // State for current authenticated user
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { profile, signOut } = useAuth();
   
-  // State for all lockers in the system
   const [lockers, setLockers] = useState<Locker[]>(initialLockers);
-  
-  // Global exam mode flag - when true, restricts student actions
   const [examMode, setExamMode] = useState<boolean>(false);
-  
-  // Individual desk mode - derived from exam mode for students
   const [deskMode, setDeskMode] = useState<DeskMode>('normal');
-  
-  // Activity log - stores all system actions for auditing
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  
-  // Student notifications
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  /**
-   * Add a new entry to the activity log
-   * Records user actions with timestamp for auditing purposes
-   */
-  const addLog = useCallback((action: string, details: string, user: User) => {
+  const addLog = useCallback((action: string, details: string, user: UserProfile) => {
     const newLog: LogEntry = {
       id: generateId(),
       timestamp: new Date(),
@@ -96,15 +60,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     setLogs(prevLogs => [newLog, ...prevLogs]);
   }, []);
 
-  /**
-   * Add a notification for students
-   * Used to alert about exam mode changes and locker status
-   */
   const addNotification = useCallback((
     type: NotificationType,
     title: string,
     message: string,
-    targetStudentId?: string
   ) => {
     const newNotification: Notification = {
       id: generateId(),
@@ -114,75 +73,29 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       timestamp: new Date(),
       read: false,
     };
-    
-    // If targetStudentId is provided, only add if current user matches
-    // Otherwise, add for all students (broadcast)
     setNotifications(prev => [newNotification, ...prev]);
   }, []);
 
-  /**
-   * Mark a notification as read
-   */
   const markNotificationRead = useCallback((notificationId: string) => {
     setNotifications(prev =>
       prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
     );
   }, []);
 
-  /**
-   * Clear all notifications
-   */
   const clearNotifications = useCallback(() => {
     setNotifications([]);
   }, []);
 
-  /**
-   * Login function - authenticates user with username and PIN
-   * Simulates RFID/biometric authentication behavior
-   */
-  const login = useCallback((credentials: LoginCredentials): { success: boolean; error?: string } => {
-    const { username, pin } = credentials;
-    
-    // Find user by username
-    const user = initialUsers.find(u => u.username === username);
-    
-    if (!user) {
-      return { success: false, error: 'User not found. Please check your username.' };
+  const logout = useCallback(async () => {
+    if (profile) {
+      addLog('LOGOUT', `${profile.name} logged out`, profile);
     }
-    
-    // Verify PIN (simulating RFID/biometric verification)
-    const validPin = userCredentials[username];
-    if (pin !== validPin) {
-      return { success: false, error: 'Invalid PIN. Please try again.' };
-    }
-    
-    // Set current user and log the action
-    setCurrentUser(user);
-    addLog('LOGIN', `${user.name} logged in as ${user.role}`, user);
-    
-    // Reset desk mode when user logs in
-    setDeskMode(examMode ? 'exam' : 'normal');
-    
-    return { success: true };
-  }, [addLog, examMode]);
-
-  /**
-   * Logout function - clears current user session
-   */
-  const logout = useCallback(() => {
-    if (currentUser) {
-      addLog('LOGOUT', `${currentUser.name} logged out`, currentUser);
-    }
-    setCurrentUser(null);
+    await signOut();
     setDeskMode('normal');
-  }, [currentUser, addLog]);
+  }, [profile, addLog, signOut]);
 
-  /**
-   * Toggle locker status between locked and unlocked
-   * Students can only toggle their own locker
-   */
   const toggleLocker = useCallback((lockerId: string) => {
-    if (!currentUser) return;
+    if (!profile) return;
     
     setLockers(prevLockers => 
       prevLockers.map(locker => {
@@ -191,26 +104,22 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
           addLog(
             newStatus === 'locked' ? 'LOCKER_LOCK' : 'LOCKER_UNLOCK',
             `${locker.id} (${locker.location}) ${newStatus}`,
-            currentUser
+            profile
           );
           return { ...locker, status: newStatus };
         }
         return locker;
       })
     );
-  }, [currentUser, addLog]);
+  }, [profile, addLog]);
 
-  /**
-   * Lock a specific locker (teacher function)
-   */
   const lockLocker = useCallback((lockerId: string) => {
-    if (!currentUser || currentUser.role !== 'teacher') return;
+    if (!profile || profile.role !== 'teacher') return;
     
     setLockers(prevLockers =>
       prevLockers.map(locker => {
         if (locker.id === lockerId && locker.status === 'unlocked') {
-          addLog('LOCKER_LOCK', `Teacher locked ${locker.id} (${locker.studentName}'s locker)`, currentUser);
-          // Add notification for the student whose locker was locked
+          addLog('LOCKER_LOCK', `Teacher locked ${locker.id} (${locker.studentName}'s locker)`, profile);
           addNotification(
             'locker_locked',
             'Locker Locked',
@@ -221,43 +130,33 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         return locker;
       })
     );
-  }, [currentUser, addLog, addNotification]);
+  }, [profile, addLog, addNotification]);
 
-  /**
-   * Unlock a specific locker (teacher function)
-   */
   const unlockLocker = useCallback((lockerId: string) => {
-    if (!currentUser || currentUser.role !== 'teacher') return;
+    if (!profile || profile.role !== 'teacher') return;
     
     setLockers(prevLockers =>
       prevLockers.map(locker => {
         if (locker.id === lockerId && locker.status === 'locked') {
-          addLog('LOCKER_UNLOCK', `Teacher unlocked ${locker.id} (${locker.studentName}'s locker)`, currentUser);
+          addLog('LOCKER_UNLOCK', `Teacher unlocked ${locker.id} (${locker.studentName}'s locker)`, profile);
           return { ...locker, status: 'unlocked' };
         }
         return locker;
       })
     );
-  }, [currentUser, addLog]);
+  }, [profile, addLog]);
 
-  /**
-   * Lock all lockers in the system (teacher emergency function)
-   */
   const lockAllLockers = useCallback(() => {
-    if (!currentUser || currentUser.role !== 'teacher') return;
+    if (!profile || profile.role !== 'teacher') return;
     
     setLockers(prevLockers =>
       prevLockers.map(locker => ({ ...locker, status: 'locked' }))
     );
-    addLog('LOCK_ALL', 'Teacher locked all lockers', currentUser);
-  }, [currentUser, addLog]);
+    addLog('LOCK_ALL', 'Teacher locked all lockers', profile);
+  }, [profile, addLog]);
 
-  /**
-   * Toggle global exam mode
-   * When enabled, restricts student desk actions
-   */
   const toggleExamMode = useCallback(() => {
-    if (!currentUser || currentUser.role !== 'teacher') return;
+    if (!profile || profile.role !== 'teacher') return;
     
     setExamMode(prev => {
       const newMode = !prev;
@@ -265,9 +164,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       addLog(
         newMode ? 'EXAM_MODE_ON' : 'EXAM_MODE_OFF',
         `Teacher ${newMode ? 'enabled' : 'disabled'} exam mode`,
-        currentUser
+        profile
       );
-      // Add notification for students about exam mode change
       addNotification(
         'exam_mode',
         newMode ? 'Exam Mode Enabled' : 'Exam Mode Disabled',
@@ -277,57 +175,47 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       );
       return newMode;
     });
-  }, [currentUser, addLog, addNotification]);
+  }, [profile, addLog, addNotification]);
 
-  /**
-   * Perform research action (simulated internet/research access)
-   * Blocked during exam mode
-   */
   const performResearch = useCallback((): { success: boolean; message: string } => {
-    if (!currentUser) {
+    if (!profile) {
       return { success: false, message: 'You must be logged in.' };
     }
     
     if (examMode) {
-      addLog('RESEARCH_BLOCKED', 'Attempted research during exam mode', currentUser);
+      addLog('RESEARCH_BLOCKED', 'Attempted research during exam mode', profile);
       return { 
         success: false, 
         message: '⚠️ Research access is disabled during exam mode. Only exam-related actions are permitted.' 
       };
     }
     
-    addLog('RESEARCH_ACCESS', 'Accessed research resources', currentUser);
+    addLog('RESEARCH_ACCESS', 'Accessed research resources', profile);
     return { 
       success: true, 
       message: '✓ Research access granted. You can browse academic resources.' 
     };
-  }, [currentUser, examMode, addLog]);
+  }, [profile, examMode, addLog]);
 
-  /**
-   * Perform exam action (always allowed)
-   * Simulates exam-specific functionality
-   */
   const performExamAction = useCallback((): { success: boolean; message: string } => {
-    if (!currentUser) {
+    if (!profile) {
       return { success: false, message: 'You must be logged in.' };
     }
     
-    addLog('EXAM_ACTION', 'Performed exam-related action', currentUser);
+    addLog('EXAM_ACTION', 'Performed exam-related action', profile);
     return { 
       success: true, 
       message: '✓ Exam action completed successfully.' 
     };
-  }, [currentUser, addLog]);
+  }, [profile, addLog]);
 
-  // Context value containing all state and functions
   const value: AppContextType = {
-    currentUser,
+    currentUser: profile,
     lockers,
     examMode,
     deskMode,
     logs,
     notifications,
-    login,
     logout,
     toggleLocker,
     lockAllLockers,
@@ -343,10 +231,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
-/**
- * Custom hook to access the app context
- * Throws error if used outside of AppProvider
- */
 export const useApp = (): AppContextType => {
   const context = useContext(AppContext);
   if (!context) {

@@ -22,7 +22,7 @@ const StudentDashboard: React.FC = () => {
   const { currentUser, lockers, logs, toggleLocker } = useApp();
 
   // Find the student's assigned locker
-  const myLocker = lockers.find(l => l.id === currentUser?.lockerId);
+  const myLocker = lockers.find(l => l.id === currentUser?.locker_id);
 
   // Filter logs to show only this student's actions
   const myLogs = logs.filter(log => log.userId === currentUser?.id);

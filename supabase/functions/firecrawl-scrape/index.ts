@@ -1,8 +1,10 @@
 /**
  * Firecrawl Scrape Edge Function
  * Scrapes content from a specific URL using Firecrawl API
- * Returns markdown content from the page
+ * Requires authentication
  */
+
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,9 +18,42 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Validate authorization
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error('No authorization header');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Authorization required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify the JWT token with Supabase
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+    if (authError || !user) {
+      console.error('Auth error:', authError?.message || 'User not found');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid or expired token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Authenticated user:', user.id);
+
     const { url, options } = await req.json();
 
-    if (!url) {
+    if (!url || typeof url !== 'string') {
       return new Response(
         JSON.stringify({ success: false, error: 'URL is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -34,13 +69,31 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Format URL
+    // Format and validate URL
     let formattedUrl = url.trim();
     if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
       formattedUrl = `https://${formattedUrl}`;
     }
 
-    console.log('Scraping URL:', formattedUrl);
+    // Basic URL validation
+    try {
+      new URL(formattedUrl);
+    } catch {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid URL format' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // URL length check
+    if (formattedUrl.length > 2000) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'URL too long' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('User', user.id, 'scraping URL:', formattedUrl.substring(0, 100));
 
     const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
@@ -66,7 +119,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log('Scrape successful');
+    console.log('Scrape successful for user', user.id);
     return new Response(
       JSON.stringify({ success: true, data: data.data || data }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
