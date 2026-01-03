@@ -19,13 +19,21 @@ import { format } from 'date-fns';
  * Renders the student's main interface with locker and desk controls
  */
 const StudentDashboard: React.FC = () => {
-  const { currentUser, lockers, logs, toggleLocker } = useApp();
+  const { currentUser, lockers, logs, toggleLocker, isLoading } = useApp();
 
   // Find the student's assigned locker
-  const myLocker = lockers.find(l => l.id === currentUser?.locker_id);
+  const myLocker = lockers.find(l => l.studentId === currentUser?.id || l.id === currentUser?.locker_id);
 
   // Filter logs to show only this student's actions
   const myLogs = logs.filter(log => log.userId === currentUser?.id);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

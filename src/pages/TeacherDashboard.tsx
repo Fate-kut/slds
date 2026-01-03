@@ -4,7 +4,7 @@
  * Provides global controls and real-time status of all lockers
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { Header } from '@/components/Header';
 import { LockerCard } from '@/components/LockerCard';
@@ -14,6 +14,26 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { 
   GraduationCap, 
   Clock, 
@@ -23,7 +43,11 @@ import {
   FileText,
   AlertTriangle,
   CheckCircle2,
-  ShieldCheck
+  ShieldCheck,
+  Plus,
+  Trash2,
+  Edit,
+  Loader2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -39,11 +63,23 @@ const TeacherDashboard: React.FC = () => {
     lockers, 
     examMode, 
     logs,
+    isLoading,
     toggleExamMode,
     lockAllLockers,
     lockLocker,
-    unlockLocker
+    unlockLocker,
+    addLocker,
+    updateLocker,
+    deleteLocker,
   } = useApp();
+
+  // State for locker management dialogs
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [deleteConfirmLocker, setDeleteConfirmLocker] = useState<string | null>(null);
+  const [selectedLocker, setSelectedLocker] = useState<{ id: string; studentName: string; location: string } | null>(null);
+  const [newLocker, setNewLocker] = useState({ id: '', studentName: 'Unassigned', location: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Calculate statistics
   const lockedCount = lockers.filter(l => l.status === 'locked').length;
@@ -69,10 +105,74 @@ const TeacherDashboard: React.FC = () => {
    */
   const handleLockAll = () => {
     lockAllLockers();
-    toast.success('All Lockers Locked', {
-      description: 'Emergency lockdown completed successfully',
-    });
   };
+
+  /**
+   * Handle adding a new locker
+   */
+  const handleAddLocker = async () => {
+    if (!newLocker.id || !newLocker.location) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    const success = await addLocker({
+      id: newLocker.id,
+      studentId: null,
+      studentName: newLocker.studentName || 'Unassigned',
+      location: newLocker.location,
+    });
+    setIsSubmitting(false);
+    
+    if (success) {
+      toast.success('Locker Added', { description: `Locker ${newLocker.id} has been created` });
+      setNewLocker({ id: '', studentName: 'Unassigned', location: '' });
+      setIsAddDialogOpen(false);
+    }
+  };
+
+  /**
+   * Handle editing a locker
+   */
+  const handleEditLocker = async () => {
+    if (!selectedLocker) return;
+    
+    setIsSubmitting(true);
+    const success = await updateLocker(selectedLocker.id, {
+      studentName: selectedLocker.studentName,
+      location: selectedLocker.location,
+    });
+    setIsSubmitting(false);
+    
+    if (success) {
+      toast.success('Locker Updated', { description: `Locker ${selectedLocker.id} has been updated` });
+      setSelectedLocker(null);
+      setIsEditDialogOpen(false);
+    }
+  };
+
+  /**
+   * Handle deleting a locker
+   */
+  const handleDeleteLocker = async () => {
+    if (!deleteConfirmLocker) return;
+    
+    const success = await deleteLocker(deleteConfirmLocker);
+    
+    if (success) {
+      toast.success('Locker Deleted', { description: `Locker ${deleteConfirmLocker} has been removed` });
+    }
+    setDeleteConfirmLocker(null);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -191,23 +291,118 @@ const TeacherDashboard: React.FC = () => {
                 <span className="w-1.5 h-5 bg-primary rounded-full" />
                 Student Lockers
               </h2>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Users size={16} />
-                {lockers.length} students
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Users size={16} />
+                  {lockers.length} lockers
+                </div>
+                
+                {/* Add Locker Dialog */}
+                <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm">
+                      <Plus size={16} className="mr-1" />
+                      Add Locker
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add New Locker</DialogTitle>
+                      <DialogDescription>
+                        Create a new locker in the system
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="locker-id">Locker ID *</Label>
+                        <Input
+                          id="locker-id"
+                          placeholder="e.g., locker-C1"
+                          value={newLocker.id}
+                          onChange={(e) => setNewLocker({ ...newLocker, id: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="locker-location">Location *</Label>
+                        <Input
+                          id="locker-location"
+                          placeholder="e.g., Row C, Position 1"
+                          value={newLocker.location}
+                          onChange={(e) => setNewLocker({ ...newLocker, location: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="student-name">Assigned Student</Label>
+                        <Input
+                          id="student-name"
+                          placeholder="Leave empty for unassigned"
+                          value={newLocker.studentName}
+                          onChange={(e) => setNewLocker({ ...newLocker, studentName: e.target.value || 'Unassigned' })}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleAddLocker} disabled={isSubmitting}>
+                        {isSubmitting && <Loader2 size={16} className="mr-2 animate-spin" />}
+                        Add Locker
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {lockers.map(locker => (
-                <LockerCard
-                  key={locker.id}
-                  locker={locker}
-                  showTeacherControls={true}
-                  onLock={() => lockLocker(locker.id)}
-                  onUnlock={() => unlockLocker(locker.id)}
-                />
-              ))}
-            </div>
+            {lockers.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center text-muted-foreground">
+                  <Lock size={48} className="mx-auto mb-4 opacity-40" />
+                  <p className="text-lg font-medium">No lockers configured</p>
+                  <p className="text-sm">Add your first locker to get started</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {lockers.map(locker => (
+                  <div key={locker.id} className="relative group">
+                    <LockerCard
+                      locker={locker}
+                      showTeacherControls={true}
+                      onLock={() => lockLocker(locker.id)}
+                      onUnlock={() => unlockLocker(locker.id)}
+                    />
+                    {/* Edit/Delete buttons overlay */}
+                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        size="icon"
+                        variant="secondary"
+                        className="h-8 w-8"
+                        onClick={() => {
+                          setSelectedLocker({
+                            id: locker.id,
+                            studentName: locker.studentName,
+                            location: locker.location,
+                          });
+                          setIsEditDialogOpen(true);
+                        }}
+                      >
+                        <Edit size={14} />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="destructive"
+                        className="h-8 w-8"
+                        onClick={() => setDeleteConfirmLocker(locker.id)}
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Right column - Activity Log */}
@@ -246,6 +441,63 @@ const TeacherDashboard: React.FC = () => {
           </CardContent>
         </Card>
       </main>
+
+      {/* Edit Locker Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Locker</DialogTitle>
+            <DialogDescription>
+              Update locker {selectedLocker?.id} settings
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-location">Location</Label>
+              <Input
+                id="edit-location"
+                value={selectedLocker?.location || ''}
+                onChange={(e) => setSelectedLocker(prev => prev ? { ...prev, location: e.target.value } : null)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-student">Assigned Student</Label>
+              <Input
+                id="edit-student"
+                value={selectedLocker?.studentName || ''}
+                onChange={(e) => setSelectedLocker(prev => prev ? { ...prev, studentName: e.target.value || 'Unassigned' } : null)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditLocker} disabled={isSubmitting}>
+              {isSubmitting && <Loader2 size={16} className="mr-2 animate-spin" />}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteConfirmLocker} onOpenChange={() => setDeleteConfirmLocker(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Locker</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete locker {deleteConfirmLocker}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteLocker} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

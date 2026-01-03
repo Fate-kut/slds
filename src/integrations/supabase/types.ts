@@ -14,6 +14,72 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: string | null
+          id: string
+          user_id: string
+          user_name: string
+          user_role: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          user_id: string
+          user_name: string
+          user_role: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          user_id?: string
+          user_name?: string
+          user_role?: string
+        }
+        Relationships: []
+      }
+      lockers: {
+        Row: {
+          created_at: string
+          id: string
+          location: string
+          locked_at: string | null
+          locked_by: string | null
+          status: string
+          student_id: string | null
+          student_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          location: string
+          locked_at?: string | null
+          locked_by?: string | null
+          status?: string
+          student_id?: string | null
+          student_name?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          location?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          status?: string
+          student_id?: string | null
+          student_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -38,6 +104,27 @@ export type Database = {
           name?: string
           updated_at?: string
           username?: string
+        }
+        Relationships: []
+      }
+      system_settings: {
+        Row: {
+          key: string
+          updated_at: string | null
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string | null
+          updated_by?: string | null
+          value?: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          value?: Json
         }
         Relationships: []
       }

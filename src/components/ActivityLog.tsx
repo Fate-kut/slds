@@ -121,9 +121,9 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({
                       <p className="text-sm text-foreground mt-0.5">{log.details}</p>
                       <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
                         <Clock size={10} />
-                        <span>{format(log.timestamp, 'HH:mm:ss')}</span>
+                        <span>{format(new Date(log.timestamp), 'HH:mm:ss')}</span>
                         <span className="mx-1">•</span>
-                        <span>{format(log.timestamp, 'MMM d, yyyy')}</span>
+                        <span>{format(new Date(log.timestamp), 'MMM d, yyyy')}</span>
                       </div>
                     </div>
                   </div>

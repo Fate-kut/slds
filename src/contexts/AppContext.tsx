@@ -2,12 +2,13 @@
  * Application Context Provider
  * Manages global state for the Smart Locker Desk System
  * Authentication is handled separately by AuthContext
+ * Locker system uses Supabase with real-time subscriptions
  */
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { Locker, LogEntry, DeskMode, Notification, NotificationType } from '@/types';
-import { initialLockers } from '@/data/initialData';
 import { useAuth, UserProfile } from '@/contexts/AuthContext';
+import { useLockerSystem } from '@/hooks/useLockerSystem';
 
 const generateId = (): string => {
   return Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
@@ -20,6 +21,7 @@ interface AppContextType {
   deskMode: DeskMode;
   logs: LogEntry[];
   notifications: Notification[];
+  isLoading: boolean;
   logout: () => void;
   toggleLocker: (lockerId: string) => void;
   lockAllLockers: () => void;
@@ -30,6 +32,9 @@ interface AppContextType {
   performExamAction: () => { success: boolean; message: string };
   markNotificationRead: (notificationId: string) => void;
   clearNotifications: () => void;
+  addLocker: (locker: Omit<Locker, 'status'> & { location: string }) => Promise<boolean>;
+  updateLocker: (lockerId: string, updates: Partial<Locker>) => Promise<boolean>;
+  deleteLocker: (lockerId: string) => Promise<boolean>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -40,25 +45,26 @@ interface AppProviderProps {
 
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const { profile, signOut } = useAuth();
+  const {
+    lockers,
+    logs,
+    examMode,
+    isLoading,
+    lockLocker: dbLockLocker,
+    unlockLocker: dbUnlockLocker,
+    toggleLocker: dbToggleLocker,
+    lockAllLockers: dbLockAllLockers,
+    toggleExamMode: dbToggleExamMode,
+    addLocker,
+    updateLocker,
+    deleteLocker,
+    addLog,
+  } = useLockerSystem();
   
-  const [lockers, setLockers] = useState<Locker[]>(initialLockers);
-  const [examMode, setExamMode] = useState<boolean>(false);
-  const [deskMode, setDeskMode] = useState<DeskMode>('normal');
-  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  const addLog = useCallback((action: string, details: string, user: UserProfile) => {
-    const newLog: LogEntry = {
-      id: generateId(),
-      timestamp: new Date(),
-      userId: user.id,
-      userName: user.name,
-      userRole: user.role,
-      action,
-      details,
-    };
-    setLogs(prevLogs => [newLog, ...prevLogs]);
-  }, []);
+  // Derive desk mode from exam mode
+  const deskMode: DeskMode = examMode ? 'exam' : 'normal';
 
   const addNotification = useCallback((
     type: NotificationType,
@@ -88,94 +94,30 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
   const logout = useCallback(async () => {
     if (profile) {
-      addLog('LOGOUT', `${profile.name} logged out`, profile);
+      await addLog('LOGOUT', `${profile.name} logged out`, profile);
     }
     await signOut();
-    setDeskMode('normal');
   }, [profile, addLog, signOut]);
 
   const toggleLocker = useCallback((lockerId: string) => {
-    if (!profile) return;
-    
-    setLockers(prevLockers => 
-      prevLockers.map(locker => {
-        if (locker.id === lockerId) {
-          const newStatus = locker.status === 'locked' ? 'unlocked' : 'locked';
-          addLog(
-            newStatus === 'locked' ? 'LOCKER_LOCK' : 'LOCKER_UNLOCK',
-            `${locker.id} (${locker.location}) ${newStatus}`,
-            profile
-          );
-          return { ...locker, status: newStatus };
-        }
-        return locker;
-      })
-    );
-  }, [profile, addLog]);
+    dbToggleLocker(lockerId);
+  }, [dbToggleLocker]);
 
   const lockLocker = useCallback((lockerId: string) => {
-    if (!profile || profile.role !== 'teacher') return;
-    
-    setLockers(prevLockers =>
-      prevLockers.map(locker => {
-        if (locker.id === lockerId && locker.status === 'unlocked') {
-          addLog('LOCKER_LOCK', `Teacher locked ${locker.id} (${locker.studentName}'s locker)`, profile);
-          addNotification(
-            'locker_locked',
-            'Locker Locked',
-            `Your locker (${locker.location}) has been locked by a teacher.`
-          );
-          return { ...locker, status: 'locked' };
-        }
-        return locker;
-      })
-    );
-  }, [profile, addLog, addNotification]);
+    dbLockLocker(lockerId);
+  }, [dbLockLocker]);
 
   const unlockLocker = useCallback((lockerId: string) => {
-    if (!profile || profile.role !== 'teacher') return;
-    
-    setLockers(prevLockers =>
-      prevLockers.map(locker => {
-        if (locker.id === lockerId && locker.status === 'locked') {
-          addLog('LOCKER_UNLOCK', `Teacher unlocked ${locker.id} (${locker.studentName}'s locker)`, profile);
-          return { ...locker, status: 'unlocked' };
-        }
-        return locker;
-      })
-    );
-  }, [profile, addLog]);
+    dbUnlockLocker(lockerId);
+  }, [dbUnlockLocker]);
 
   const lockAllLockers = useCallback(() => {
-    if (!profile || profile.role !== 'teacher') return;
-    
-    setLockers(prevLockers =>
-      prevLockers.map(locker => ({ ...locker, status: 'locked' }))
-    );
-    addLog('LOCK_ALL', 'Teacher locked all lockers', profile);
-  }, [profile, addLog]);
+    dbLockAllLockers();
+  }, [dbLockAllLockers]);
 
   const toggleExamMode = useCallback(() => {
-    if (!profile || profile.role !== 'teacher') return;
-    
-    setExamMode(prev => {
-      const newMode = !prev;
-      setDeskMode(newMode ? 'exam' : 'normal');
-      addLog(
-        newMode ? 'EXAM_MODE_ON' : 'EXAM_MODE_OFF',
-        `Teacher ${newMode ? 'enabled' : 'disabled'} exam mode`,
-        profile
-      );
-      addNotification(
-        'exam_mode',
-        newMode ? 'Exam Mode Enabled' : 'Exam Mode Disabled',
-        newMode 
-          ? 'Research and internet access has been disabled. Only exam-related actions are permitted.'
-          : 'Normal mode restored. Research and internet access is now available.'
-      );
-      return newMode;
-    });
-  }, [profile, addLog, addNotification]);
+    dbToggleExamMode();
+  }, [dbToggleExamMode]);
 
   const performResearch = useCallback((): { success: boolean; message: string } => {
     if (!profile) {
@@ -216,6 +158,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     deskMode,
     logs,
     notifications,
+    isLoading,
     logout,
     toggleLocker,
     lockAllLockers,
@@ -226,6 +169,9 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     performExamAction,
     markNotificationRead,
     clearNotifications,
+    addLocker,
+    updateLocker,
+    deleteLocker,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
