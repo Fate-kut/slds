@@ -1,75 +1,119 @@
 /**
  * Auth Page Component
- * Login page with username and PIN authentication
- * Simulates RFID/biometric authentication behavior
+ * Login and signup with Supabase authentication
  */
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useApp } from '@/contexts/AppContext';
+import { useAuth, UserRole } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Shield, User, KeyRound, AlertCircle, Fingerprint, CreditCard } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Shield, User, KeyRound, AlertCircle, Fingerprint, Mail, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { z } from 'zod';
 
-/**
- * Auth Component
- * Renders the login form and handles authentication
- */
+// Validation schemas
+const loginSchema = z.object({
+  email: z.string().trim().email('Please enter a valid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+});
+
+const signupSchema = z.object({
+  email: z.string().trim().email('Please enter a valid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  username: z.string().trim().min(3, 'Username must be at least 3 characters').max(50, 'Username is too long'),
+  name: z.string().trim().min(2, 'Name must be at least 2 characters').max(100, 'Name is too long'),
+  role: z.enum(['student', 'teacher']),
+});
+
 const Auth: React.FC = () => {
   const navigate = useNavigate();
-  const { login } = useApp();
+  const { signIn, signUp } = useAuth();
   
-  // Form state
-  const [username, setUsername] = useState('');
-  const [pin, setPin] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  // Login form state
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [isLoginLoading, setIsLoginLoading] = useState(false);
 
-  /**
-   * Handle form submission
-   * Validates credentials and redirects based on user role
-   */
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Signup form state
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupPassword, setSignupPassword] = useState('');
+  const [signupUsername, setSignupUsername] = useState('');
+  const [signupName, setSignupName] = useState('');
+  const [signupRole, setSignupRole] = useState<UserRole>('student');
+  const [signupError, setSignupError] = useState('');
+  const [isSignupLoading, setIsSignupLoading] = useState(false);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setIsLoading(true);
+    setLoginError('');
+    
+    // Validate input
+    const validation = loginSchema.safeParse({ email: loginEmail, password: loginPassword });
+    if (!validation.success) {
+      setLoginError(validation.error.errors[0].message);
+      return;
+    }
 
-    // Simulate authentication delay (RFID/biometric processing)
-    await new Promise(resolve => setTimeout(resolve, 800));
+    setIsLoginLoading(true);
 
-    const result = login({ username, pin });
+    const result = await signIn(loginEmail, loginPassword);
 
     if (result.success) {
-      toast.success('Authentication Successful', {
-        description: 'Welcome to the Smart Locker System',
+      toast.success('Welcome back!', {
+        description: 'You have been logged in successfully.',
       });
-      // Navigation will be handled by App.tsx based on currentUser
       navigate('/');
     } else {
-      setError(result.error || 'Authentication failed');
-      toast.error('Authentication Failed', {
+      setLoginError(result.error || 'Login failed');
+      toast.error('Login Failed', {
         description: result.error,
       });
     }
 
-    setIsLoading(false);
+    setIsLoginLoading(false);
   };
 
-  /**
-   * Quick login for demo purposes
-   */
-  const handleDemoLogin = (type: 'student' | 'teacher') => {
-    if (type === 'student') {
-      setUsername('john.doe');
-      setPin('1234');
-    } else {
-      setUsername('prof.anderson');
-      setPin('9999');
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSignupError('');
+    
+    // Validate input
+    const validation = signupSchema.safeParse({
+      email: signupEmail,
+      password: signupPassword,
+      username: signupUsername,
+      name: signupName,
+      role: signupRole,
+    });
+    
+    if (!validation.success) {
+      setSignupError(validation.error.errors[0].message);
+      return;
     }
+
+    setIsSignupLoading(true);
+
+    const result = await signUp(signupEmail, signupPassword, signupUsername, signupName, signupRole);
+
+    if (result.success) {
+      toast.success('Account Created!', {
+        description: 'Welcome to the Smart Locker System.',
+      });
+      navigate('/');
+    } else {
+      setSignupError(result.error || 'Signup failed');
+      toast.error('Signup Failed', {
+        description: result.error,
+      });
+    }
+
+    setIsSignupLoading(false);
   };
 
   return (
@@ -90,123 +134,190 @@ const Auth: React.FC = () => {
       {/* Main content */}
       <main className="flex-1 flex items-center justify-center p-4">
         <div className="w-full max-w-md space-y-6 animate-slide-up">
-          {/* Login card */}
           <Card className="border-2">
             <CardHeader className="text-center pb-2">
-              {/* Authentication icon */}
               <div className="w-20 h-20 mx-auto mb-4 rounded-2xl gradient-primary flex items-center justify-center">
                 <Fingerprint size={40} className="text-primary-foreground" />
               </div>
-              <CardTitle className="text-2xl">Authentication Required</CardTitle>
+              <CardTitle className="text-2xl">Welcome</CardTitle>
               <CardDescription className="text-base">
-                Enter your credentials or use simulated RFID/biometric
+                Sign in or create an account to continue
               </CardDescription>
             </CardHeader>
             
-            <CardContent className="space-y-6">
-              {/* Login form */}
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Username field */}
-                <div className="space-y-2">
-                  <Label htmlFor="username" className="flex items-center gap-2">
-                    <User size={14} />
-                    Username
-                  </Label>
-                  <Input
-                    id="username"
-                    type="text"
-                    placeholder="Enter your username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    required
-                    autoComplete="username"
-                    className="h-11"
-                  />
-                </div>
+            <CardContent>
+              <Tabs defaultValue="login" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-6">
+                  <TabsTrigger value="login">Sign In</TabsTrigger>
+                  <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                </TabsList>
 
-                {/* PIN field */}
-                <div className="space-y-2">
-                  <Label htmlFor="pin" className="flex items-center gap-2">
-                    <KeyRound size={14} />
-                    PIN / Password
-                  </Label>
-                  <Input
-                    id="pin"
-                    type="password"
-                    placeholder="Enter your PIN"
-                    value={pin}
-                    onChange={(e) => setPin(e.target.value)}
-                    required
-                    autoComplete="current-password"
-                    className="h-11"
-                  />
-                </div>
+                {/* Login Tab */}
+                <TabsContent value="login">
+                  <form onSubmit={handleLogin} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="login-email" className="flex items-center gap-2">
+                        <Mail size={14} />
+                        Email
+                      </Label>
+                      <Input
+                        id="login-email"
+                        type="email"
+                        placeholder="your.email@example.com"
+                        value={loginEmail}
+                        onChange={(e) => setLoginEmail(e.target.value)}
+                        required
+                        autoComplete="email"
+                        className="h-11"
+                      />
+                    </div>
 
-                {/* Error message */}
-                {error && (
-                  <div className="flex items-center gap-2 p-3 bg-danger/10 border border-danger/20 rounded-lg text-danger text-sm animate-fade-in">
-                    <AlertCircle size={16} />
-                    {error}
-                  </div>
-                )}
+                    <div className="space-y-2">
+                      <Label htmlFor="login-password" className="flex items-center gap-2">
+                        <KeyRound size={14} />
+                        Password
+                      </Label>
+                      <Input
+                        id="login-password"
+                        type="password"
+                        placeholder="Enter your password"
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        required
+                        autoComplete="current-password"
+                        className="h-11"
+                      />
+                    </div>
 
-                {/* Submit button */}
-                <Button 
-                  type="submit" 
-                  className="w-full h-11"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin mr-2" />
-                      Authenticating...
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard size={18} className="mr-2" />
-                      Authenticate
-                    </>
-                  )}
-                </Button>
-              </form>
+                    {loginError && (
+                      <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm animate-fade-in">
+                        <AlertCircle size={16} />
+                        {loginError}
+                      </div>
+                    )}
 
-              {/* Demo login buttons */}
-              <div className="space-y-3">
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-card px-2 text-muted-foreground">Demo Accounts</span>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-3">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => handleDemoLogin('student')}
-                    className="h-auto py-3 flex-col gap-1"
-                  >
-                    <User size={18} />
-                    <span className="text-xs">Student Demo</span>
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => handleDemoLogin('teacher')}
-                    className="h-auto py-3 flex-col gap-1"
-                  >
-                    <Shield size={18} />
-                    <span className="text-xs">Teacher Demo</span>
-                  </Button>
-                </div>
-              </div>
+                    <Button type="submit" className="w-full h-11" disabled={isLoginLoading}>
+                      {isLoginLoading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin mr-2" />
+                          Signing in...
+                        </>
+                      ) : (
+                        <>
+                          <User size={18} className="mr-2" />
+                          Sign In
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </TabsContent>
+
+                {/* Signup Tab */}
+                <TabsContent value="signup">
+                  <form onSubmit={handleSignup} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-email" className="flex items-center gap-2">
+                        <Mail size={14} />
+                        Email
+                      </Label>
+                      <Input
+                        id="signup-email"
+                        type="email"
+                        placeholder="your.email@example.com"
+                        value={signupEmail}
+                        onChange={(e) => setSignupEmail(e.target.value)}
+                        required
+                        autoComplete="email"
+                        className="h-11"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-password" className="flex items-center gap-2">
+                        <KeyRound size={14} />
+                        Password
+                      </Label>
+                      <Input
+                        id="signup-password"
+                        type="password"
+                        placeholder="At least 6 characters"
+                        value={signupPassword}
+                        onChange={(e) => setSignupPassword(e.target.value)}
+                        required
+                        autoComplete="new-password"
+                        className="h-11"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-username" className="flex items-center gap-2">
+                        <User size={14} />
+                        Username
+                      </Label>
+                      <Input
+                        id="signup-username"
+                        type="text"
+                        placeholder="Choose a username"
+                        value={signupUsername}
+                        onChange={(e) => setSignupUsername(e.target.value)}
+                        required
+                        autoComplete="username"
+                        className="h-11"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-name">Full Name</Label>
+                      <Input
+                        id="signup-name"
+                        type="text"
+                        placeholder="Your full name"
+                        value={signupName}
+                        onChange={(e) => setSignupName(e.target.value)}
+                        required
+                        autoComplete="name"
+                        className="h-11"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-role">Role</Label>
+                      <Select value={signupRole} onValueChange={(value: UserRole) => setSignupRole(value)}>
+                        <SelectTrigger className="h-11">
+                          <SelectValue placeholder="Select your role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="student">Student</SelectItem>
+                          <SelectItem value="teacher">Teacher</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {signupError && (
+                      <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm animate-fade-in">
+                        <AlertCircle size={16} />
+                        {signupError}
+                      </div>
+                    )}
+
+                    <Button type="submit" className="w-full h-11" disabled={isSignupLoading}>
+                      {isSignupLoading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin mr-2" />
+                          Creating account...
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus size={18} className="mr-2" />
+                          Create Account
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
-
-          {/* Help text */}
-          <p className="text-center text-sm text-muted-foreground">
-            This is a simulation. No real RFID or biometric hardware is required.
-          </p>
         </div>
       </main>
     </div>
