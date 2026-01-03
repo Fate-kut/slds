@@ -14,13 +14,14 @@ import Index from "@/pages/Index";
 import Auth from "@/pages/Auth";
 import StudentDashboard from "@/pages/StudentDashboard";
 import TeacherDashboard from "@/pages/TeacherDashboard";
+import AdminDashboard from "@/pages/AdminDashboard";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  allowedRoles?: ('student' | 'teacher')[];
+  allowedRoles?: ('student' | 'teacher' | 'admin')[];
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
@@ -99,6 +100,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute allowedRoles={['teacher']}>
             <TeacherDashboard />
+          </ProtectedRoute>
+        }
+        />
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminDashboard />
           </ProtectedRoute>
         }
       />

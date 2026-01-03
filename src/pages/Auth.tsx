@@ -27,7 +27,7 @@ const signupSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
   username: z.string().trim().min(3, 'Username must be at least 3 characters').max(50, 'Username is too long'),
   name: z.string().trim().min(2, 'Name must be at least 2 characters').max(100, 'Name is too long'),
-  role: z.enum(['student', 'teacher']),
+  role: z.enum(['student', 'teacher', 'admin']),
 });
 
 const Auth: React.FC = () => {
@@ -289,6 +289,7 @@ const Auth: React.FC = () => {
                         <SelectContent>
                           <SelectItem value="student">Student</SelectItem>
                           <SelectItem value="teacher">Teacher</SelectItem>
+                          <SelectItem value="admin">Administrator</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

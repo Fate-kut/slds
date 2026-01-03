@@ -22,6 +22,10 @@ const Index: React.FC = () => {
   }
 
   // Redirect based on user role
+  if (currentUser.role === 'admin') {
+    return <Navigate to="/admin" replace />;
+  }
+  
   if (currentUser.role === 'teacher') {
     return <Navigate to="/teacher" replace />;
   }

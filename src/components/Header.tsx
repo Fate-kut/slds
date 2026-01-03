@@ -9,7 +9,7 @@ import { useApp } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from './StatusBadge';
 import NotificationBell from './NotificationBell';
-import { LogOut, Shield, User, GraduationCap } from 'lucide-react';
+import { LogOut, Shield, User, GraduationCap, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface HeaderProps {
@@ -63,7 +63,9 @@ export const Header: React.FC<HeaderProps> = ({ className }) => {
             
             {/* User badge */}
             <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary rounded-full">
-              {currentUser.role === 'teacher' ? (
+              {currentUser.role === 'admin' ? (
+                <ShieldCheck size={16} className="text-primary" />
+              ) : currentUser.role === 'teacher' ? (
                 <GraduationCap size={16} className="text-primary" />
               ) : (
                 <User size={16} className="text-muted-foreground" />
@@ -72,7 +74,9 @@ export const Header: React.FC<HeaderProps> = ({ className }) => {
               <span 
                 className={cn(
                   'text-xs px-2 py-0.5 rounded-full',
-                  currentUser.role === 'teacher' 
+                  currentUser.role === 'admin'
+                    ? 'bg-primary/10 text-primary'
+                    : currentUser.role === 'teacher' 
                     ? 'bg-primary/10 text-primary' 
                     : 'bg-muted text-muted-foreground'
                 )}
