@@ -18,12 +18,19 @@ import {
 import { useAuth, UserProfile } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
+export interface Student {
+  id: string;
+  name: string;
+  username: string;
+}
+
 export const useLockerSystem = () => {
   const { profile } = useAuth();
   const [lockers, setLockers] = useState<Locker[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [examMode, setExamMode] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [students, setStudents] = useState<Student[]>([]);
 
   // Fetch initial data
   useEffect(() => {
@@ -65,6 +72,23 @@ export const useLockerSystem = () => {
         if (settingsData) {
           const settings = settingsData.value as SystemSettings['exam_mode'];
           setExamMode(settings?.enabled ?? false);
+        }
+        // Fetch students (profiles with student role) - teachers only
+        const { data: rolesData } = await supabase
+          .from('user_roles')
+          .select('user_id')
+          .eq('role', 'student');
+        
+        if (rolesData && rolesData.length > 0) {
+          const studentIds = rolesData.map(r => r.user_id);
+          const { data: profilesData } = await supabase
+            .from('profiles')
+            .select('id, name, username')
+            .in('id', studentIds);
+          
+          if (profilesData) {
+            setStudents(profilesData);
+          }
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -343,11 +367,45 @@ export const useLockerSystem = () => {
     return true;
   }, [profile, addLog]);
 
+  // Assign locker to student
+  const assignLocker = useCallback(async (lockerId: string, studentId: string | null) => {
+    if (!profile) return false;
+    
+    const student = studentId ? students.find(s => s.id === studentId) : null;
+    const studentName = student?.name || 'Unassigned';
+    
+    const { error } = await supabase
+      .from('lockers')
+      .update({
+        student_id: studentId,
+        student_name: studentName,
+      })
+      .eq('id', lockerId);
+    
+    if (error) {
+      toast.error('Failed to assign locker', { description: error.message });
+      console.error('Error assigning locker:', error);
+      return false;
+    }
+
+    // Also update the student's profile with their locker_id
+    if (studentId) {
+      await supabase
+        .from('profiles')
+        .update({ locker_id: lockerId })
+        .eq('id', studentId);
+    }
+
+    await addLog('LOCKER_ASSIGN', `Assigned locker ${lockerId} to ${studentName}`, profile);
+    return true;
+  }, [profile, students, addLog]);
+
   return {
     lockers,
     logs,
     examMode,
     isLoading,
+    students,
     lockLocker,
     unlockLocker,
     toggleLocker,
@@ -356,6 +414,7 @@ export const useLockerSystem = () => {
     addLocker,
     updateLocker,
     deleteLocker,
+    assignLocker,
     addLog,
   };
 };

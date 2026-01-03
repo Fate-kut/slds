@@ -34,6 +34,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { 
   GraduationCap, 
   Clock, 
@@ -48,6 +55,7 @@ import {
   Trash2,
   Edit,
   Loader2,
+  UserPlus,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -64,6 +72,7 @@ const TeacherDashboard: React.FC = () => {
     examMode, 
     logs,
     isLoading,
+    students,
     toggleExamMode,
     lockAllLockers,
     lockLocker,
@@ -71,14 +80,17 @@ const TeacherDashboard: React.FC = () => {
     addLocker,
     updateLocker,
     deleteLocker,
+    assignLocker,
   } = useApp();
 
   // State for locker management dialogs
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [deleteConfirmLocker, setDeleteConfirmLocker] = useState<string | null>(null);
-  const [selectedLocker, setSelectedLocker] = useState<{ id: string; studentName: string; location: string } | null>(null);
+  const [selectedLocker, setSelectedLocker] = useState<{ id: string; studentName: string; location: string; studentId: string | null } | null>(null);
   const [newLocker, setNewLocker] = useState({ id: '', studentName: 'Unassigned', location: '' });
+  const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Calculate statistics
@@ -140,7 +152,6 @@ const TeacherDashboard: React.FC = () => {
     
     setIsSubmitting(true);
     const success = await updateLocker(selectedLocker.id, {
-      studentName: selectedLocker.studentName,
       location: selectedLocker.location,
     });
     setIsSubmitting(false);
@@ -149,6 +160,28 @@ const TeacherDashboard: React.FC = () => {
       toast.success('Locker Updated', { description: `Locker ${selectedLocker.id} has been updated` });
       setSelectedLocker(null);
       setIsEditDialogOpen(false);
+    }
+  };
+
+  /**
+   * Handle assigning a locker to a student
+   */
+  const handleAssignLocker = async () => {
+    if (!selectedLocker) return;
+    
+    setIsSubmitting(true);
+    const studentId = selectedStudentId === 'unassigned' ? null : selectedStudentId;
+    const success = await assignLocker(selectedLocker.id, studentId);
+    setIsSubmitting(false);
+    
+    if (success) {
+      const studentName = studentId 
+        ? students.find(s => s.id === studentId)?.name || 'Student'
+        : 'Unassigned';
+      toast.success('Locker Assigned', { description: `Locker ${selectedLocker.id} assigned to ${studentName}` });
+      setSelectedLocker(null);
+      setSelectedStudentId('');
+      setIsAssignDialogOpen(false);
     }
   };
 
@@ -373,17 +406,37 @@ const TeacherDashboard: React.FC = () => {
                       onLock={() => lockLocker(locker.id)}
                       onUnlock={() => unlockLocker(locker.id)}
                     />
-                    {/* Edit/Delete buttons overlay */}
+                    {/* Edit/Delete/Assign buttons overlay */}
                     <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button
                         size="icon"
                         variant="secondary"
                         className="h-8 w-8"
+                        title="Assign to student"
                         onClick={() => {
                           setSelectedLocker({
                             id: locker.id,
                             studentName: locker.studentName,
                             location: locker.location,
+                            studentId: locker.studentId,
+                          });
+                          setSelectedStudentId(locker.studentId || 'unassigned');
+                          setIsAssignDialogOpen(true);
+                        }}
+                      >
+                        <UserPlus size={14} />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="secondary"
+                        className="h-8 w-8"
+                        title="Edit locker"
+                        onClick={() => {
+                          setSelectedLocker({
+                            id: locker.id,
+                            studentName: locker.studentName,
+                            location: locker.location,
+                            studentId: locker.studentId,
                           });
                           setIsEditDialogOpen(true);
                         }}
@@ -394,6 +447,7 @@ const TeacherDashboard: React.FC = () => {
                         size="icon"
                         variant="destructive"
                         className="h-8 w-8"
+                        title="Delete locker"
                         onClick={() => setDeleteConfirmLocker(locker.id)}
                       >
                         <Trash2 size={14} />
@@ -460,14 +514,6 @@ const TeacherDashboard: React.FC = () => {
                 onChange={(e) => setSelectedLocker(prev => prev ? { ...prev, location: e.target.value } : null)}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-student">Assigned Student</Label>
-              <Input
-                id="edit-student"
-                value={selectedLocker?.studentName || ''}
-                onChange={(e) => setSelectedLocker(prev => prev ? { ...prev, studentName: e.target.value || 'Unassigned' } : null)}
-              />
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
@@ -476,6 +522,56 @@ const TeacherDashboard: React.FC = () => {
             <Button onClick={handleEditLocker} disabled={isSubmitting}>
               {isSubmitting && <Loader2 size={16} className="mr-2 animate-spin" />}
               Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Locker Dialog */}
+      <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Locker</DialogTitle>
+            <DialogDescription>
+              Assign locker {selectedLocker?.id} to a student
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Current Assignment</Label>
+              <p className="text-sm text-muted-foreground">
+                {selectedLocker?.studentName || 'Unassigned'}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="assign-student">Assign to Student</Label>
+              <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
+                <SelectTrigger id="assign-student">
+                  <SelectValue placeholder="Select a student..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {students.map((student) => (
+                    <SelectItem key={student.id} value={student.id}>
+                      {student.name} ({student.username})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {students.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No registered students found
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAssignLocker} disabled={isSubmitting}>
+              {isSubmitting && <Loader2 size={16} className="mr-2 animate-spin" />}
+              Assign Locker
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -8,7 +8,7 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { Locker, LogEntry, DeskMode, Notification, NotificationType } from '@/types';
 import { useAuth, UserProfile } from '@/contexts/AuthContext';
-import { useLockerSystem } from '@/hooks/useLockerSystem';
+import { useLockerSystem, Student } from '@/hooks/useLockerSystem';
 
 const generateId = (): string => {
   return Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
@@ -22,6 +22,7 @@ interface AppContextType {
   logs: LogEntry[];
   notifications: Notification[];
   isLoading: boolean;
+  students: Student[];
   logout: () => void;
   toggleLocker: (lockerId: string) => void;
   lockAllLockers: () => void;
@@ -35,6 +36,7 @@ interface AppContextType {
   addLocker: (locker: Omit<Locker, 'status'> & { location: string }) => Promise<boolean>;
   updateLocker: (lockerId: string, updates: Partial<Locker>) => Promise<boolean>;
   deleteLocker: (lockerId: string) => Promise<boolean>;
+  assignLocker: (lockerId: string, studentId: string | null) => Promise<boolean>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -50,6 +52,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     logs,
     examMode,
     isLoading,
+    students,
     lockLocker: dbLockLocker,
     unlockLocker: dbUnlockLocker,
     toggleLocker: dbToggleLocker,
@@ -58,6 +61,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     addLocker,
     updateLocker,
     deleteLocker,
+    assignLocker: dbAssignLocker,
     addLog,
   } = useLockerSystem();
   
@@ -151,6 +155,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     };
   }, [profile, addLog]);
 
+  const assignLocker = useCallback((lockerId: string, studentId: string | null) => {
+    return dbAssignLocker(lockerId, studentId);
+  }, [dbAssignLocker]);
+
   const value: AppContextType = {
     currentUser: profile,
     lockers,
@@ -159,6 +167,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     logs,
     notifications,
     isLoading,
+    students,
     logout,
     toggleLocker,
     lockAllLockers,
@@ -172,6 +181,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     addLocker,
     updateLocker,
     deleteLocker,
+    assignLocker,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
