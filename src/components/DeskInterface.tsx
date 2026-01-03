@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from './StatusBadge';
 import { ResearchBrowser } from './ResearchBrowser';
+import { ExamMaterialsBrowser } from './ExamMaterialsBrowser';
 import { useApp } from '@/contexts/AppContext';
 import { 
   Monitor, 
@@ -31,6 +32,7 @@ export const DeskInterface: React.FC = () => {
   const { examMode, performResearch, performExamAction } = useApp();
   const [lastAction, setLastAction] = useState<{ success: boolean; message: string } | null>(null);
   const [showBrowser, setShowBrowser] = useState(false);
+  const [showExamTools, setShowExamTools] = useState(false);
 
   /**
    * Handle research action button click
@@ -54,13 +56,14 @@ export const DeskInterface: React.FC = () => {
 
   /**
    * Handle exam action button click
-   * Always allowed regardless of mode
+   * Opens the exam materials browser
    */
   const handleExamAction = () => {
     const result = performExamAction();
     setLastAction(result);
-    toast.success('Exam Action Completed', {
-      description: 'Your exam action was processed successfully.',
+    setShowExamTools(true);
+    toast.success('Exam Tools Opened', {
+      description: 'Accessing exam materials and study resources.',
     });
   };
 
@@ -200,6 +203,11 @@ export const DeskInterface: React.FC = () => {
       {/* Research browser overlay - real web access */}
       {showBrowser && (
         <ResearchBrowser onClose={() => setShowBrowser(false)} />
+      )}
+
+      {/* Exam materials browser overlay */}
+      {showExamTools && (
+        <ExamMaterialsBrowser onClose={() => setShowExamTools(false)} />
       )}
     </Card>
   );
