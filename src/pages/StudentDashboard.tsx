@@ -4,14 +4,16 @@
  * Shows locker status, desk mode, and available actions
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { Header } from '@/components/Header';
 import { LockerCard } from '@/components/LockerCard';
 import { DeskInterface } from '@/components/DeskInterface';
 import { ActivityLog } from '@/components/ActivityLog';
+import { LearningLibrary } from '@/components/LearningLibrary';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Backpack, Clock, Calendar, BookOpen } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Backpack, Clock, Calendar, BookOpen, Library, Monitor } from 'lucide-react';
 import { format } from 'date-fns';
 
 /**
@@ -58,84 +60,104 @@ const StudentDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Main content grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left column - Locker and quick info */}
-          <div className="space-y-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
-            {/* My Locker */}
-            {myLocker ? (
-              <div>
-                <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                  <span className="w-1.5 h-5 bg-primary rounded-full" />
-                  My Locker
-                </h2>
-                <LockerCard
-                  locker={myLocker}
-                  isOwner={true}
-                  onToggle={() => toggleLocker(myLocker.id)}
-                />
+        {/* Main Tabs */}
+        <Tabs defaultValue="desk" className="animate-slide-up">
+          <TabsList className="mb-4">
+            <TabsTrigger value="desk" className="gap-2">
+              <Monitor size={16} />
+              Smart Desk
+            </TabsTrigger>
+            <TabsTrigger value="library" className="gap-2">
+              <Library size={16} />
+              Learning Library
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="desk">
+            {/* Main content grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left column - Locker and quick info */}
+              <div className="space-y-6">
+                {/* My Locker */}
+                {myLocker ? (
+                  <div>
+                    <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                      <span className="w-1.5 h-5 bg-primary rounded-full" />
+                      My Locker
+                    </h2>
+                    <LockerCard
+                      locker={myLocker}
+                      isOwner={true}
+                      onToggle={() => toggleLocker(myLocker.id)}
+                    />
+                  </div>
+                ) : (
+                  <Card>
+                    <CardContent className="py-8 text-center text-muted-foreground">
+                      <Backpack size={40} className="mx-auto mb-3 opacity-40" />
+                      <p>No locker assigned</p>
+                      <p className="text-sm">Contact your teacher for locker assignment</p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Quick stats */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <BookOpen size={16} className="text-primary" />
+                      Today's Summary
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="text-center p-3 bg-secondary rounded-lg">
+                        <div className="text-2xl font-bold text-primary">
+                          {myLogs.filter(l => l.action.includes('LOCKER')).length}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Locker Actions</div>
+                      </div>
+                      <div className="text-center p-3 bg-secondary rounded-lg">
+                        <div className="text-2xl font-bold text-primary">
+                          {myLogs.filter(l => l.action.includes('RESEARCH') || l.action.includes('EXAM_ACTION')).length}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Desk Actions</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-            ) : (
-              <Card>
-                <CardContent className="py-8 text-center text-muted-foreground">
-                  <Backpack size={40} className="mx-auto mb-3 opacity-40" />
-                  <p>No locker assigned</p>
-                  <p className="text-sm">Contact your teacher for locker assignment</p>
-                </CardContent>
-              </Card>
-            )}
 
-            {/* Quick stats */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <BookOpen size={16} className="text-primary" />
-                  Today's Summary
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center p-3 bg-secondary rounded-lg">
-                    <div className="text-2xl font-bold text-primary">
-                      {myLogs.filter(l => l.action.includes('LOCKER')).length}
-                    </div>
-                    <div className="text-xs text-muted-foreground">Locker Actions</div>
-                  </div>
-                  <div className="text-center p-3 bg-secondary rounded-lg">
-                    <div className="text-2xl font-bold text-primary">
-                      {myLogs.filter(l => l.action.includes('RESEARCH') || l.action.includes('EXAM_ACTION')).length}
-                    </div>
-                    <div className="text-xs text-muted-foreground">Desk Actions</div>
-                  </div>
+              {/* Center column - Smart Desk */}
+              <div className="lg:col-span-2 space-y-6">
+                <div>
+                  <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-5 bg-primary rounded-full" />
+                    Smart Desk
+                  </h2>
+                  <DeskInterface />
                 </div>
-              </CardContent>
-            </Card>
-          </div>
 
-          {/* Center column - Smart Desk */}
-          <div className="lg:col-span-2 space-y-6 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-            <div>
-              <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                <span className="w-1.5 h-5 bg-primary rounded-full" />
-                Smart Desk
-              </h2>
-              <DeskInterface />
+                {/* Activity log */}
+                <div>
+                  <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-5 bg-primary rounded-full" />
+                    My Activity
+                  </h2>
+                  <ActivityLog 
+                    logs={myLogs} 
+                    maxHeight="250px"
+                    title="Recent Actions"
+                  />
+                </div>
+              </div>
             </div>
+          </TabsContent>
 
-            {/* Activity log */}
-            <div>
-              <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                <span className="w-1.5 h-5 bg-primary rounded-full" />
-                My Activity
-              </h2>
-              <ActivityLog 
-                logs={myLogs} 
-                maxHeight="250px"
-                title="Recent Actions"
-              />
-            </div>
-          </div>
-        </div>
+          <TabsContent value="library">
+            <LearningLibrary />
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );

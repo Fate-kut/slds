@@ -10,6 +10,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppProvider } from "@/contexts/AppContext";
+import { OfflineProvider } from "@/contexts/OfflineContext";
 import Index from "@/pages/Index";
 import Auth from "@/pages/Auth";
 import StudentDashboard from "@/pages/StudentDashboard";
@@ -124,7 +125,9 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <AppProvider>
-            <AppRoutes />
+            <OfflineProvider>
+              <AppRoutes />
+            </OfflineProvider>
           </AppProvider>
         </AuthProvider>
       </BrowserRouter>
