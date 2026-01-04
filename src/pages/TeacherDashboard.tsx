@@ -10,11 +10,13 @@ import { Header } from '@/components/Header';
 import { LockerCard } from '@/components/LockerCard';
 import { ActivityLog } from '@/components/ActivityLog';
 import { StatusBadge } from '@/components/StatusBadge';
+import { MaterialUploader } from '@/components/LearningLibrary';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -56,6 +58,8 @@ import {
   Edit,
   Loader2,
   UserPlus,
+  BookOpen,
+  LayoutDashboard,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -229,6 +233,21 @@ const TeacherDashboard: React.FC = () => {
             </span>
           </div>
         </div>
+
+        {/* Main Tabs */}
+        <Tabs defaultValue="dashboard" className="animate-slide-up">
+          <TabsList className="mb-4">
+            <TabsTrigger value="dashboard" className="gap-2">
+              <LayoutDashboard size={16} />
+              Dashboard
+            </TabsTrigger>
+            <TabsTrigger value="materials" className="gap-2">
+              <BookOpen size={16} />
+              Materials
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="dashboard">
 
         {/* Control panel */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-slide-up">
@@ -494,6 +513,12 @@ const TeacherDashboard: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+          </TabsContent>
+
+          <TabsContent value="materials">
+            <MaterialUploader />
+          </TabsContent>
+        </Tabs>
       </main>
 
       {/* Edit Locker Dialog */}
