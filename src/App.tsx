@@ -11,6 +11,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppProvider } from "@/contexts/AppContext";
 import { OfflineProvider } from "@/contexts/OfflineContext";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import Index from "@/pages/Index";
 import Auth from "@/pages/Auth";
 import StudentDashboard from "@/pages/StudentDashboard";
@@ -127,6 +128,7 @@ const App = () => (
           <AppProvider>
             <OfflineProvider>
               <AppRoutes />
+              <SpeedInsights />
             </OfflineProvider>
           </AppProvider>
         </AuthProvider>
