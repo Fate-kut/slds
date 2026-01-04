@@ -8,6 +8,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Analytics } from "@vercel/analytics/react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppProvider } from "@/contexts/AppContext";
 import { OfflineProvider } from "@/contexts/OfflineContext";
@@ -127,6 +128,7 @@ const App = () => (
           <AppProvider>
             <OfflineProvider>
               <AppRoutes />
+              <Analytics />
             </OfflineProvider>
           </AppProvider>
         </AuthProvider>
