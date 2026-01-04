@@ -9,8 +9,9 @@ import { useApp } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from './StatusBadge';
 import NotificationBell from './NotificationBell';
-import { LogOut, Shield, User, GraduationCap, ShieldCheck } from 'lucide-react';
+import { LogOut, User, GraduationCap, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import sldsLogo from '@/assets/slds-logo.png';
 
 interface HeaderProps {
   className?: string;
@@ -34,12 +35,10 @@ export const Header: React.FC<HeaderProps> = ({ className }) => {
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo and branding */}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
-            <Shield className="text-primary-foreground" size={22} />
-          </div>
+          <img src={sldsLogo} alt="SLDS Logo" className="w-12 h-12 object-contain" />
           <div>
-            <h1 className="font-bold text-lg leading-tight">Smart Locker System</h1>
-            <p className="text-xs text-muted-foreground">Classroom Access Control</p>
+            <h1 className="font-bold text-lg leading-tight">SLDS</h1>
+            <p className="text-xs text-muted-foreground">Smart Locker Desk System</p>
           </div>
         </div>
 
