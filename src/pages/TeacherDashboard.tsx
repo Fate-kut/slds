@@ -11,6 +11,7 @@ import { LockerCard } from '@/components/LockerCard';
 import { ActivityLog } from '@/components/ActivityLog';
 import { StatusBadge } from '@/components/StatusBadge';
 import { MaterialUploader } from '@/components/LearningLibrary';
+import { TeacherAssignments, TeacherExams } from '@/components/Assignments';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -236,10 +237,18 @@ const TeacherDashboard: React.FC = () => {
 
         {/* Main Tabs */}
         <Tabs defaultValue="dashboard" className="animate-slide-up">
-          <TabsList className="mb-4">
+          <TabsList className="mb-4 flex-wrap">
             <TabsTrigger value="dashboard" className="gap-2">
               <LayoutDashboard size={16} />
               Dashboard
+            </TabsTrigger>
+            <TabsTrigger value="assignments" className="gap-2">
+              <FileText size={16} />
+              Assignments
+            </TabsTrigger>
+            <TabsTrigger value="exams" className="gap-2">
+              <GraduationCap size={16} />
+              Exams
             </TabsTrigger>
             <TabsTrigger value="materials" className="gap-2">
               <BookOpen size={16} />
@@ -517,6 +526,14 @@ const TeacherDashboard: React.FC = () => {
 
           <TabsContent value="materials">
             <MaterialUploader />
+          </TabsContent>
+
+          <TabsContent value="assignments">
+            <TeacherAssignments />
+          </TabsContent>
+
+          <TabsContent value="exams">
+            <TeacherExams />
           </TabsContent>
         </Tabs>
       </main>

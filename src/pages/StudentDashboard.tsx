@@ -11,9 +11,10 @@ import { LockerCard } from '@/components/LockerCard';
 import { DeskInterface } from '@/components/DeskInterface';
 import { ActivityLog } from '@/components/ActivityLog';
 import { LearningLibrary } from '@/components/LearningLibrary';
+import { StudentAssignments, StudentExams } from '@/components/Assignments';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Backpack, Clock, Calendar, BookOpen, Library, Monitor } from 'lucide-react';
+import { Backpack, Clock, Calendar, BookOpen, Library, Monitor, FileText, GraduationCap } from 'lucide-react';
 import { format } from 'date-fns';
 
 /**
@@ -62,14 +63,22 @@ const StudentDashboard: React.FC = () => {
 
         {/* Main Tabs */}
         <Tabs defaultValue="desk" className="animate-slide-up">
-          <TabsList className="mb-4">
+          <TabsList className="mb-4 flex-wrap">
             <TabsTrigger value="desk" className="gap-2">
               <Monitor size={16} />
               Smart Desk
             </TabsTrigger>
+            <TabsTrigger value="assignments" className="gap-2">
+              <FileText size={16} />
+              Assignments
+            </TabsTrigger>
+            <TabsTrigger value="exams" className="gap-2">
+              <GraduationCap size={16} />
+              Exams
+            </TabsTrigger>
             <TabsTrigger value="library" className="gap-2">
               <Library size={16} />
-              Learning Library
+              Library
             </TabsTrigger>
           </TabsList>
 
@@ -152,6 +161,14 @@ const StudentDashboard: React.FC = () => {
                 </div>
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="assignments">
+            <StudentAssignments />
+          </TabsContent>
+
+          <TabsContent value="exams">
+            <StudentExams />
           </TabsContent>
 
           <TabsContent value="library">
