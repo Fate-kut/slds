@@ -27,10 +27,15 @@ interface CachedFile {
 
 interface SyncQueueItem {
   id: string;
-  action: 'check_update' | 'download';
-  materialId: string;
+  action: string;
+  endpoint: string;
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  body?: unknown;
+  headers?: Record<string, string>;
   timestamp: Date;
   status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  retryCount: number;
+  maxRetries: number;
 }
 
 interface AuthCache {
@@ -215,6 +220,64 @@ export async function clearAuthCache(): Promise<void> {
   await database.clear('authCache');
 }
 
+// Sync queue operations
+export async function addToSyncQueue(item: Omit<SyncQueueItem, 'id' | 'timestamp' | 'status' | 'retryCount'>): Promise<string> {
+  const database = await getDB();
+  const id = `sync-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  await database.put('syncQueue', {
+    ...item,
+    id,
+    timestamp: new Date(),
+    status: 'pending',
+    retryCount: 0,
+  });
+  return id;
+}
+
+export async function getPendingSyncItems(): Promise<SyncQueueItem[]> {
+  const database = await getDB();
+  return database.getAllFromIndex('syncQueue', 'by-status', 'pending');
+}
+
+export async function updateSyncItem(id: string, updates: Partial<SyncQueueItem>): Promise<void> {
+  const database = await getDB();
+  const item = await database.get('syncQueue', id);
+  if (item) {
+    await database.put('syncQueue', { ...item, ...updates });
+  }
+}
+
+export async function removeSyncItem(id: string): Promise<void> {
+  const database = await getDB();
+  await database.delete('syncQueue', id);
+}
+
+export async function clearCompletedSyncItems(): Promise<void> {
+  const database = await getDB();
+  const completed = await database.getAllFromIndex('syncQueue', 'by-status', 'completed');
+  for (const item of completed) {
+    await database.delete('syncQueue', item.id);
+  }
+}
+
+// User settings storage
+export async function saveUserSetting(key: string, value: unknown): Promise<void> {
+  try {
+    localStorage.setItem(`slds-setting-${key}`, JSON.stringify(value));
+  } catch (error) {
+    console.error('Error saving user setting:', error);
+  }
+}
+
+export async function getUserSetting<T>(key: string, defaultValue: T): Promise<T> {
+  try {
+    const stored = localStorage.getItem(`slds-setting-${key}`);
+    return stored ? JSON.parse(stored) : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+}
+
 // Namespace export for cleaner API
 export const offlineDB = {
   // Material operations
@@ -237,6 +300,17 @@ export const offlineDB = {
   cacheAuth: cacheAuthData,
   getCachedAuth: getCachedAuthByEmail,
   clearAuthCache,
+  
+  // Sync queue operations
+  addToSyncQueue,
+  getPendingSyncItems,
+  updateSyncItem,
+  removeSyncItem,
+  clearCompletedSyncItems,
+  
+  // User settings
+  saveUserSetting,
+  getUserSetting,
   
   // Storage
   getStorageUsage,
@@ -279,4 +353,4 @@ export async function getLocalVersions(): Promise<Map<string, number>> {
   return versions;
 }
 
-export type { MaterialMetadata, CachedFile, AuthCache as CachedAuth };
+export type { MaterialMetadata, CachedFile, AuthCache as CachedAuth, SyncQueueItem };
