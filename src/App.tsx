@@ -12,6 +12,8 @@ import { Analytics } from "@vercel/analytics/react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppProvider } from "@/contexts/AppContext";
 import { OfflineProvider } from "@/contexts/OfflineContext";
+import OfflineIndicator from "@/components/OfflineIndicator";
+import UpdatePrompt from "@/components/UpdatePrompt";
 import Index from "@/pages/Index";
 import Auth from "@/pages/Auth";
 import StudentDashboard from "@/pages/StudentDashboard";
@@ -127,6 +129,8 @@ const App = () => (
         <AuthProvider>
           <AppProvider>
             <OfflineProvider>
+              <OfflineIndicator />
+              <UpdatePrompt />
               <AppRoutes />
               <Analytics />
             </OfflineProvider>

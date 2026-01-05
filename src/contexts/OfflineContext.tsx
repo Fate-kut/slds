@@ -6,13 +6,13 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { registerServiceWorker } from '@/lib/offline/serviceWorker';
 import {
   getAllMaterialsMetadata,
-  isMaterialDownloaded,
   downloadAndSaveMaterial,
   removeMaterial,
   getStorageUsage,
   getLocalVersions,
   getFile,
   updateLastAccessed,
+  getPendingSyncItems,
   MaterialMetadata,
 } from '@/lib/offline/indexedDB';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,6 +31,7 @@ interface OfflineContextType {
   downloadProgress: Map<string, DownloadProgress>;
   storageUsage: { used: number; materials: number };
   updatesAvailable: Map<string, number>; // materialId -> new version
+  pendingSyncCount: number;
   downloadMaterial: (material: LearningMaterial) => Promise<boolean>;
   removeMaterialOffline: (id: string) => Promise<void>;
   getMaterialFile: (id: string) => Promise<Blob | null>;
@@ -60,7 +61,18 @@ export const OfflineProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [downloadProgress, setDownloadProgress] = useState<Map<string, DownloadProgress>>(new Map());
   const [storageUsage, setStorageUsage] = useState({ used: 0, materials: 0 });
   const [updatesAvailable, setUpdatesAvailable] = useState<Map<string, number>>(new Map());
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const { toast } = useToast();
+
+  // Update pending sync count
+  const refreshPendingSyncCount = useCallback(async () => {
+    try {
+      const pending = await getPendingSyncItems();
+      setPendingSyncCount(pending.length);
+    } catch (error) {
+      console.error('Error getting pending sync count:', error);
+    }
+  }, []);
 
   // Initialize service worker
   useEffect(() => {
@@ -266,6 +278,11 @@ export const OfflineProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [isOnline, toast]);
 
+  // Load pending sync count on mount
+  useEffect(() => {
+    refreshPendingSyncCount();
+  }, [refreshPendingSyncCount]);
+
   return (
     <OfflineContext.Provider
       value={{
@@ -275,6 +292,7 @@ export const OfflineProvider: React.FC<{ children: React.ReactNode }> = ({ child
         downloadProgress,
         storageUsage,
         updatesAvailable,
+        pendingSyncCount,
         downloadMaterial,
         removeMaterialOffline,
         getMaterialFile,
