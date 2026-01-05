@@ -44,6 +44,104 @@ export type Database = {
         }
         Relationships: []
       }
+      assignment_submissions: {
+        Row: {
+          assignment_id: string
+          content: string | null
+          file_name: string | null
+          file_url: string | null
+          id: string
+          is_late: boolean
+          student_id: string
+          submitted_at: string
+        }
+        Insert: {
+          assignment_id: string
+          content?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          is_late?: boolean
+          student_id: string
+          submitted_at?: string
+        }
+        Update: {
+          assignment_id?: string
+          content?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          is_late?: boolean
+          student_id?: string
+          submitted_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assignment_submissions_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "assignments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assignments: {
+        Row: {
+          allow_late_submission: boolean
+          class_id: string
+          created_at: string
+          created_by: string
+          description: string | null
+          due_date: string
+          id: string
+          max_score: number
+          subject_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          allow_late_submission?: boolean
+          class_id: string
+          created_at?: string
+          created_by: string
+          description?: string | null
+          due_date: string
+          id?: string
+          max_score?: number
+          subject_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          allow_late_submission?: boolean
+          class_id?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          due_date?: string
+          id?: string
+          max_score?: number
+          subject_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assignments_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignments_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       classes: {
         Row: {
           created_at: string
@@ -64,6 +162,211 @@ export type Database = {
           year?: number
         }
         Relationships: []
+      }
+      exam_questions: {
+        Row: {
+          correct_answer: string | null
+          created_at: string
+          exam_id: string
+          id: string
+          options: Json | null
+          order_index: number
+          points: number
+          question_text: string
+          question_type: string
+        }
+        Insert: {
+          correct_answer?: string | null
+          created_at?: string
+          exam_id: string
+          id?: string
+          options?: Json | null
+          order_index?: number
+          points?: number
+          question_text: string
+          question_type?: string
+        }
+        Update: {
+          correct_answer?: string | null
+          created_at?: string
+          exam_id?: string
+          id?: string
+          options?: Json | null
+          order_index?: number
+          points?: number
+          question_text?: string
+          question_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_questions_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_submissions: {
+        Row: {
+          answers: Json
+          exam_id: string
+          id: string
+          is_auto_submitted: boolean
+          started_at: string
+          student_id: string
+          submitted_at: string | null
+        }
+        Insert: {
+          answers?: Json
+          exam_id: string
+          id?: string
+          is_auto_submitted?: boolean
+          started_at?: string
+          student_id: string
+          submitted_at?: string | null
+        }
+        Update: {
+          answers?: Json
+          exam_id?: string
+          id?: string
+          is_auto_submitted?: boolean
+          started_at?: string
+          student_id?: string
+          submitted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_submissions_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exams: {
+        Row: {
+          auto_submit: boolean
+          class_id: string
+          created_at: string
+          created_by: string
+          description: string | null
+          duration_minutes: number
+          id: string
+          is_online: boolean
+          is_published: boolean
+          max_score: number
+          scheduled_end: string
+          scheduled_start: string
+          subject_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          auto_submit?: boolean
+          class_id: string
+          created_at?: string
+          created_by: string
+          description?: string | null
+          duration_minutes?: number
+          id?: string
+          is_online?: boolean
+          is_published?: boolean
+          max_score?: number
+          scheduled_end: string
+          scheduled_start: string
+          subject_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          auto_submit?: boolean
+          class_id?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          duration_minutes?: number
+          id?: string
+          is_online?: boolean
+          is_published?: boolean
+          max_score?: number
+          scheduled_end?: string
+          scheduled_start?: string
+          subject_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exams_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exams_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      grades: {
+        Row: {
+          assignment_submission_id: string | null
+          exam_submission_id: string | null
+          feedback: string | null
+          graded_at: string
+          graded_by: string
+          id: string
+          is_published: boolean
+          max_score: number
+          score: number
+          student_id: string
+        }
+        Insert: {
+          assignment_submission_id?: string | null
+          exam_submission_id?: string | null
+          feedback?: string | null
+          graded_at?: string
+          graded_by: string
+          id?: string
+          is_published?: boolean
+          max_score?: number
+          score: number
+          student_id: string
+        }
+        Update: {
+          assignment_submission_id?: string | null
+          exam_submission_id?: string | null
+          feedback?: string | null
+          graded_at?: string
+          graded_by?: string
+          id?: string
+          is_published?: boolean
+          max_score?: number
+          score?: number
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grades_assignment_submission_id_fkey"
+            columns: ["assignment_submission_id"]
+            isOneToOne: false
+            referencedRelation: "assignment_submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grades_exam_submission_id_fkey"
+            columns: ["exam_submission_id"]
+            isOneToOne: false
+            referencedRelation: "exam_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       learning_materials: {
         Row: {
