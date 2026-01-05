@@ -12,9 +12,10 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Shield, User, KeyRound, AlertCircle, Fingerprint, Mail, UserPlus } from 'lucide-react';
+import { Shield, User, KeyRound, AlertCircle, Fingerprint, Mail, UserPlus, WifiOff, Wifi } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 // Validation schemas
 const loginSchema = z.object({
@@ -32,7 +33,7 @@ const signupSchema = z.object({
 
 const Auth: React.FC = () => {
   const navigate = useNavigate();
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, isOffline } = useAuth();
   
   // Login form state
   const [loginEmail, setLoginEmail] = useState('');
@@ -65,8 +66,10 @@ const Auth: React.FC = () => {
     const result = await signIn(loginEmail, loginPassword);
 
     if (result.success) {
-      toast.success('Welcome back!', {
-        description: 'You have been logged in successfully.',
+      toast.success(result.isOffline ? 'Offline Login' : 'Welcome back!', {
+        description: result.isOffline 
+          ? 'Logged in with cached credentials. Some features may be limited.'
+          : 'You have been logged in successfully.',
       });
       navigate('/');
     } else {
@@ -146,10 +149,20 @@ const Auth: React.FC = () => {
             </CardHeader>
             
             <CardContent>
+              {/* Offline indicator */}
+              {isOffline && (
+                <Alert className="mb-4 border-amber-500/50 bg-amber-500/10">
+                  <WifiOff className="h-4 w-4 text-amber-500" />
+                  <AlertDescription className="text-amber-600 dark:text-amber-400">
+                    You're offline. Sign in with previously cached credentials, or connect to the internet for full access.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <Tabs defaultValue="login" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsList className={`grid w-full mb-6 ${isOffline ? 'grid-cols-1' : 'grid-cols-2'}`}>
                   <TabsTrigger value="login">Sign In</TabsTrigger>
-                  <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                  {!isOffline && <TabsTrigger value="signup">Sign Up</TabsTrigger>}
                 </TabsList>
 
                 {/* Login Tab */}

@@ -34,9 +34,16 @@ interface SyncQueueItem {
 }
 
 interface AuthCache {
-  userId: string;
-  userName: string;
-  userRole: string;
+  id: string;
+  email: string;
+  passwordHash: string;
+  profile: {
+    id: string;
+    username: string;
+    name: string;
+    locker_id: string | null;
+    role: 'student' | 'teacher' | 'admin';
+  };
   cachedAt: Date;
   expiresAt: Date;
 }
@@ -64,6 +71,9 @@ interface SLDSOfflineDB extends DBSchema {
   authCache: {
     key: string;
     value: AuthCache;
+    indexes: {
+      'by-email': string;
+    };
   };
 }
 
@@ -97,7 +107,8 @@ export async function getDB(): Promise<IDBPDatabase<SLDSOfflineDB>> {
 
       // Auth cache store
       if (!database.objectStoreNames.contains('authCache')) {
-        database.createObjectStore('authCache', { keyPath: 'userId' });
+        const authStore = database.createObjectStore('authCache', { keyPath: 'id' });
+        authStore.createIndex('by-email', 'email');
       }
     },
   });
@@ -185,20 +196,16 @@ export async function updateLastAccessed(id: string): Promise<void> {
 }
 
 // Auth cache operations
-export async function cacheAuth(auth: Omit<AuthCache, 'cachedAt' | 'expiresAt'>): Promise<void> {
+export async function cacheAuthData(auth: AuthCache): Promise<void> {
   const database = await getDB();
-  await database.put('authCache', {
-    ...auth,
-    cachedAt: new Date(),
-    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-  });
+  await database.put('authCache', auth);
 }
 
-export async function getCachedAuth(userId: string): Promise<AuthCache | undefined> {
+export async function getCachedAuthByEmail(email: string): Promise<AuthCache | undefined> {
   const database = await getDB();
-  const auth = await database.get('authCache', userId);
-  if (auth && new Date(auth.expiresAt) > new Date()) {
-    return auth;
+  const results = await database.getAllFromIndex('authCache', 'by-email', email);
+  if (results.length > 0 && new Date(results[0].expiresAt) > new Date()) {
+    return results[0];
   }
   return undefined;
 }
@@ -207,6 +214,33 @@ export async function clearAuthCache(): Promise<void> {
   const database = await getDB();
   await database.clear('authCache');
 }
+
+// Namespace export for cleaner API
+export const offlineDB = {
+  // Material operations
+  saveMaterialMetadata,
+  getMaterialMetadata,
+  getAllMaterialsMetadata,
+  deleteMaterialMetadata,
+  downloadAndSaveMaterial,
+  removeMaterial,
+  updateLastAccessed,
+  isMaterialDownloaded,
+  getLocalVersions,
+  
+  // File operations
+  saveFile,
+  getFile,
+  deleteFile,
+  
+  // Auth operations
+  cacheAuth: cacheAuthData,
+  getCachedAuth: getCachedAuthByEmail,
+  clearAuthCache,
+  
+  // Storage
+  getStorageUsage,
+};
 
 // Storage usage
 export async function getStorageUsage(): Promise<{ used: number; materials: number }> {
@@ -245,4 +279,4 @@ export async function getLocalVersions(): Promise<Map<string, number>> {
   return versions;
 }
 
-export type { MaterialMetadata, CachedFile, AuthCache };
+export type { MaterialMetadata, CachedFile, AuthCache as CachedAuth };
