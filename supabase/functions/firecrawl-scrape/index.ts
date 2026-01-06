@@ -11,6 +11,43 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+/**
+ * Validates that a URL is public (not private IP, localhost, or cloud metadata)
+ */
+function isPublicUrl(urlString: string): boolean {
+  try {
+    const url = new URL(urlString);
+    
+    // Only allow HTTPS for security
+    if (url.protocol !== 'https:') return false;
+    
+    const hostname = url.hostname.toLowerCase();
+    
+    // Block private IP ranges, localhost, and cloud metadata endpoints
+    const blockedPatterns = [
+      /^127\./,                              // 127.0.0.0/8 (localhost)
+      /^10\./,                               // 10.0.0.0/8 (private)
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./,     // 172.16.0.0/12 (private)
+      /^192\.168\./,                         // 192.168.0.0/16 (private)
+      /^169\.254\./,                         // 169.254.0.0/16 (link-local, AWS metadata)
+      /^localhost$/i,
+      /^0\.0\.0\.0$/,
+      /^\[?::1\]?$/,                         // IPv6 localhost
+      /^\[?fe80:/i,                          // IPv6 link-local
+      /^metadata\.google\.internal$/i,       // GCP metadata
+      /^.*\.internal$/i,                     // Internal domains
+    ];
+    
+    for (const pattern of blockedPatterns) {
+      if (pattern.test(hostname)) return false;
+    }
+    
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -87,6 +124,15 @@ Deno.serve(async (req) => {
     if (formattedUrl.length > 2000) {
       return new Response(
         JSON.stringify({ success: false, error: 'URL too long' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // SSRF protection: Block private IPs, localhost, and cloud metadata
+    if (!isPublicUrl(formattedUrl)) {
+      console.warn('Blocked SSRF attempt by user', user.id, 'to:', formattedUrl.substring(0, 100));
+      return new Response(
+        JSON.stringify({ success: false, error: 'URL not allowed. Only public HTTPS URLs are permitted.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

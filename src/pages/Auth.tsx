@@ -5,13 +5,13 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth, UserRole } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 import { Shield, User, KeyRound, AlertCircle, Fingerprint, Mail, UserPlus, WifiOff, Wifi } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -28,7 +28,6 @@ const signupSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
   username: z.string().trim().min(3, 'Username must be at least 3 characters').max(50, 'Username is too long'),
   name: z.string().trim().min(2, 'Name must be at least 2 characters').max(100, 'Name is too long'),
-  role: z.enum(['student', 'teacher', 'admin']),
 });
 
 const Auth: React.FC = () => {
@@ -46,7 +45,6 @@ const Auth: React.FC = () => {
   const [signupPassword, setSignupPassword] = useState('');
   const [signupUsername, setSignupUsername] = useState('');
   const [signupName, setSignupName] = useState('');
-  const [signupRole, setSignupRole] = useState<UserRole>('student');
   const [signupError, setSignupError] = useState('');
   const [isSignupLoading, setIsSignupLoading] = useState(false);
 
@@ -92,7 +90,6 @@ const Auth: React.FC = () => {
       password: signupPassword,
       username: signupUsername,
       name: signupName,
-      role: signupRole,
     });
     
     if (!validation.success) {
@@ -102,7 +99,8 @@ const Auth: React.FC = () => {
 
     setIsSignupLoading(true);
 
-    const result = await signUp(signupEmail, signupPassword, signupUsername, signupName, signupRole);
+    // Always register as student - role upgrades require admin approval
+    const result = await signUp(signupEmail, signupPassword, signupUsername, signupName, 'student');
 
     if (result.success) {
       toast.success('Account Created!', {

@@ -11,6 +11,30 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+/**
+ * Validates search query for safety
+ */
+function isValidSearchQuery(query: string): boolean {
+  // Block queries that look like URL injection attempts
+  const dangerousPatterns = [
+    /^https?:\/\/127\./i,
+    /^https?:\/\/10\./i,
+    /^https?:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\./i,
+    /^https?:\/\/192\.168\./i,
+    /^https?:\/\/169\.254\./i,
+    /^https?:\/\/localhost/i,
+    /^https?:\/\/0\.0\.0\.0/i,
+    /metadata\.google\.internal/i,
+    /169\.254\.169\.254/i,
+  ];
+  
+  for (const pattern of dangerousPatterns) {
+    if (pattern.test(query)) return false;
+  }
+  
+  return true;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -62,6 +86,15 @@ Deno.serve(async (req) => {
     if (query.length > 500) {
       return new Response(
         JSON.stringify({ success: false, error: 'Query too long (max 500 characters)' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // SSRF protection: Block dangerous search queries
+    if (!isValidSearchQuery(query)) {
+      console.warn('Blocked suspicious search query by user', user.id);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Search query contains restricted content' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
