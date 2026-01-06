@@ -1,19 +1,18 @@
 /**
  * Learning Library - Main component for browsing and managing offline learning materials
+ * Optimized for performance with memoization and efficient rendering
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo, Suspense, lazy } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { useOffline } from '@/contexts/OfflineContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { MaterialCard } from './MaterialCard';
-import { PDFReader } from './PDFReader';
 import {
   BookOpen,
   Download,
@@ -24,8 +23,12 @@ import {
   RefreshCw,
   Library,
   CloudDownload,
+  Loader2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
+// Lazy load PDFReader for better initial load
+const PDFReader = lazy(() => import('./PDFReader'));
 
 interface Subject {
   id: string;
@@ -48,6 +51,64 @@ interface LearningMaterial {
   subjects: Subject | null;
 }
 
+// Memoized format bytes function
+const formatBytes = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+// Memoized subject filter component
+const SubjectFilter = memo(({ 
+  subjects, 
+  selectedSubject, 
+  onSelect 
+}: { 
+  subjects: Subject[]; 
+  selectedSubject: string; 
+  onSelect: (id: string) => void;
+}) => (
+  <div className="flex gap-2 flex-wrap">
+    <Badge
+      variant={selectedSubject === 'all' ? 'default' : 'outline'}
+      className="cursor-pointer hover:bg-primary/90 transition-colors"
+      onClick={() => onSelect('all')}
+    >
+      All Subjects
+    </Badge>
+    {subjects.map((subject) => (
+      <Badge
+        key={subject.id}
+        variant={selectedSubject === subject.id ? 'default' : 'outline'}
+        className="cursor-pointer hover:bg-primary/90 transition-colors"
+        onClick={() => onSelect(subject.id)}
+      >
+        {subject.name}
+      </Badge>
+    ))}
+  </div>
+));
+SubjectFilter.displayName = 'SubjectFilter';
+
+// Loading skeleton for material cards
+const MaterialCardSkeleton = memo(() => (
+  <Card className="animate-pulse">
+    <CardContent className="pt-6">
+      <div className="flex items-start gap-3">
+        <div className="w-12 h-12 bg-muted rounded-lg" />
+        <div className="flex-1 space-y-2">
+          <div className="h-4 bg-muted rounded w-3/4" />
+          <div className="h-3 bg-muted rounded w-1/2" />
+          <div className="h-3 bg-muted rounded w-1/4" />
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+));
+MaterialCardSkeleton.displayName = 'MaterialCardSkeleton';
+
 export const LearningLibrary: React.FC = () => {
   const { examMode } = useApp();
   const {
@@ -60,7 +121,7 @@ export const LearningLibrary: React.FC = () => {
     removeMaterialOffline,
     getMaterialFile,
     checkForUpdates,
-    refreshDownloadedMaterials,
+    downloadMultipleMaterials,
   } = useOffline();
   const { toast } = useToast();
 
@@ -72,77 +133,80 @@ export const LearningLibrary: React.FC = () => {
   const [activeTab, setActiveTab] = useState('available');
   const [selectedMaterial, setSelectedMaterial] = useState<string | null>(null);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
 
-  // Fetch materials and subjects
+  // Fetch materials and subjects - optimized with single effect
   useEffect(() => {
+    let isMounted = true;
+    
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // Fetch subjects
-        const { data: subjectsData } = await supabase
-          .from('subjects')
-          .select('*')
-          .order('name');
+        const [subjectsRes, materialsRes] = await Promise.all([
+          supabase.from('subjects').select('*').order('name'),
+          supabase.from('learning_materials').select('*, subjects (id, name, code)').order('title'),
+        ]);
 
-        if (subjectsData) {
-          setSubjects(subjectsData);
-        }
-
-        // Fetch assigned materials
-        const { data: materialsData, error } = await supabase
-          .from('learning_materials')
-          .select(`
-            *,
-            subjects (id, name, code)
-          `)
-          .order('title');
-
-        if (error) throw error;
-
-        if (materialsData) {
-          setMaterials(materialsData as LearningMaterial[]);
+        if (isMounted) {
+          if (subjectsRes.data) setSubjects(subjectsRes.data);
+          if (materialsRes.data) setMaterials(materialsRes.data as LearningMaterial[]);
         }
       } catch (error) {
         console.error('Error fetching materials:', error);
-        // If offline, just show downloaded materials
-        if (!isOnline) {
+        if (!isOnline && isMounted) {
           toast({
             title: 'Offline Mode',
             description: 'Showing downloaded materials only.',
           });
         }
       } finally {
-        setIsLoading(false);
+        if (isMounted) setIsLoading(false);
       }
     };
 
     fetchData();
+    
+    return () => { isMounted = false; };
   }, [isOnline, toast]);
 
-  // Filter materials
-  const filteredMaterials = materials.filter((material) => {
-    const matchesSubject = selectedSubject === 'all' || material.subject_id === selectedSubject;
-    const matchesSearch =
-      searchQuery === '' ||
-      material.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      material.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSubject && matchesSearch;
-  });
+  // Memoized filtered materials
+  const filteredMaterials = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
+    return materials.filter((material) => {
+      const matchesSubject = selectedSubject === 'all' || material.subject_id === selectedSubject;
+      const matchesSearch = query === '' ||
+        material.title.toLowerCase().includes(query) ||
+        material.description?.toLowerCase().includes(query);
+      return matchesSubject && matchesSearch;
+    });
+  }, [materials, selectedSubject, searchQuery]);
 
-  // Get downloaded material IDs for quick lookup
-  const downloadedIds = new Set(downloadedMaterials.map((m) => m.id));
+  // Memoized downloaded IDs set
+  const downloadedIds = useMemo(() => 
+    new Set(downloadedMaterials.map((m) => m.id)), 
+    [downloadedMaterials]
+  );
+
+  // Memoized not downloaded materials for batch download
+  const notDownloadedMaterials = useMemo(() => 
+    filteredMaterials.filter((m) => !downloadedIds.has(m.id)),
+    [filteredMaterials, downloadedIds]
+  );
 
   // Handle opening a material
-  const handleOpenMaterial = async (materialId: string) => {
+  const handleOpenMaterial = useCallback(async (materialId: string) => {
     const material = materials.find((m) => m.id === materialId);
     if (!material) return;
 
-    // Check if downloaded
+    // Check if downloaded first (faster)
     const blob = await getMaterialFile(materialId);
     if (blob) {
       setPdfBlob(blob);
       setSelectedMaterial(materialId);
-    } else if (isOnline) {
+      return;
+    }
+    
+    if (isOnline) {
       // Fetch from server
       try {
         const { data: urlData } = supabase.storage
@@ -169,21 +233,18 @@ export const LearningLibrary: React.FC = () => {
         variant: 'destructive',
       });
     }
-  };
+  }, [materials, getMaterialFile, isOnline, toast]);
 
-  // Format bytes to human readable
-  const formatBytes = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
+  // Handle check for updates
+  const handleCheckUpdates = useCallback(async () => {
+    setIsCheckingUpdates(true);
+    await checkForUpdates();
+    setIsCheckingUpdates(false);
+  }, [checkForUpdates]);
 
-  // Download all materials
-  const handleDownloadAll = async () => {
-    const notDownloaded = filteredMaterials.filter((m) => !downloadedIds.has(m.id));
-    if (notDownloaded.length === 0) {
+  // Handle download all
+  const handleDownloadAll = useCallback(async () => {
+    if (notDownloadedMaterials.length === 0) {
       toast({
         title: 'All Downloaded',
         description: 'All materials are already downloaded.',
@@ -193,13 +254,17 @@ export const LearningLibrary: React.FC = () => {
 
     toast({
       title: 'Downloading All',
-      description: `Downloading ${notDownloaded.length} materials...`,
+      description: `Starting download of ${notDownloadedMaterials.length} materials...`,
     });
 
-    for (const material of notDownloaded) {
-      await downloadMaterial(material);
-    }
-  };
+    await downloadMultipleMaterials(notDownloadedMaterials);
+  }, [notDownloadedMaterials, downloadMultipleMaterials, toast]);
+
+  // Close PDF reader
+  const handleClosePdf = useCallback(() => {
+    setSelectedMaterial(null);
+    setPdfBlob(null);
+  }, []);
 
   // If exam mode is active, show restricted message
   if (examMode) {
@@ -211,8 +276,7 @@ export const LearningLibrary: React.FC = () => {
             Learning Materials Disabled
           </h3>
           <p className="text-muted-foreground max-w-md">
-            Access to learning materials is restricted during exam mode. Only exam-specific
-            content is available.
+            Access to learning materials is restricted during exam mode.
           </p>
         </CardContent>
       </Card>
@@ -223,21 +287,24 @@ export const LearningLibrary: React.FC = () => {
   if (selectedMaterial && pdfBlob) {
     const material = materials.find((m) => m.id === selectedMaterial);
     return (
-      <PDFReader
-        blob={pdfBlob}
-        title={material?.title || 'Document'}
-        onClose={() => {
-          setSelectedMaterial(null);
-          setPdfBlob(null);
-        }}
-      />
+      <Suspense fallback={
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      }>
+        <PDFReader
+          blob={pdfBlob}
+          title={material?.title || 'Document'}
+          onClose={handleClosePdf}
+        />
+      </Suspense>
     );
   }
 
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3">
           <Library className="h-6 w-6 text-primary" />
           <h2 className="text-xl font-bold">Learning Library</h2>
@@ -252,8 +319,17 @@ export const LearningLibrary: React.FC = () => {
             {formatBytes(storageUsage.used)} • {storageUsage.materials} files
           </Badge>
           {isOnline && (
-            <Button variant="outline" size="sm" onClick={checkForUpdates}>
-              <RefreshCw className="h-4 w-4 mr-1" />
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleCheckUpdates}
+              disabled={isCheckingUpdates}
+            >
+              {isCheckingUpdates ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-1" />
+              )}
               Check Updates
             </Button>
           )}
@@ -271,30 +347,16 @@ export const LearningLibrary: React.FC = () => {
             className="pl-10"
           />
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <Badge
-            variant={selectedSubject === 'all' ? 'default' : 'outline'}
-            className="cursor-pointer"
-            onClick={() => setSelectedSubject('all')}
-          >
-            All Subjects
-          </Badge>
-          {subjects.map((subject) => (
-            <Badge
-              key={subject.id}
-              variant={selectedSubject === subject.id ? 'default' : 'outline'}
-              className="cursor-pointer"
-              onClick={() => setSelectedSubject(subject.id)}
-            >
-              {subject.name}
-            </Badge>
-          ))}
-        </div>
+        <SubjectFilter 
+          subjects={subjects} 
+          selectedSubject={selectedSubject} 
+          onSelect={setSelectedSubject}
+        />
       </div>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <TabsList>
             <TabsTrigger value="available" className="gap-1">
               <BookOpen className="h-4 w-4" />
@@ -305,18 +367,18 @@ export const LearningLibrary: React.FC = () => {
               Downloaded ({downloadedMaterials.length})
             </TabsTrigger>
           </TabsList>
-          {activeTab === 'available' && isOnline && filteredMaterials.length > 0 && (
+          {activeTab === 'available' && isOnline && notDownloadedMaterials.length > 0 && (
             <Button size="sm" onClick={handleDownloadAll}>
               <CloudDownload className="h-4 w-4 mr-1" />
-              Download All
+              Download All ({notDownloadedMaterials.length})
             </Button>
           )}
         </div>
 
         <TabsContent value="available" className="mt-4">
           {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {[...Array(6)].map((_, i) => <MaterialCardSkeleton key={i} />)}
             </div>
           ) : filteredMaterials.length === 0 ? (
             <Card>
@@ -326,7 +388,7 @@ export const LearningLibrary: React.FC = () => {
                 <p className="text-muted-foreground">
                   {searchQuery || selectedSubject !== 'all'
                     ? 'Try adjusting your filters.'
-                    : 'No materials have been assigned to your class yet.'}
+                    : 'No materials have been uploaded yet.'}
                 </p>
               </CardContent>
             </Card>

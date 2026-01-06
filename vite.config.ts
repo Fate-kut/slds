@@ -10,6 +10,35 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
   },
+  build: {
+    // Optimize chunk splitting for faster loads
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Core vendor chunks
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          // UI components
+          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-tabs', '@radix-ui/react-select', '@radix-ui/react-dropdown-menu'],
+          // Supabase
+          'supabase': ['@supabase/supabase-js'],
+          // PDF reader (loaded lazily)
+          'pdf-reader': ['react-pdf'],
+          // Date utilities
+          'date-utils': ['date-fns'],
+        },
+      },
+    },
+    // Enable minification and tree shaking
+    minify: 'esbuild',
+    target: 'esnext',
+    // Reduce chunk size warnings threshold
+    chunkSizeWarningLimit: 1000,
+  },
+  // Optimize dependencies
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom', '@supabase/supabase-js'],
+    exclude: ['react-pdf'], // Exclude heavy deps from pre-bundling
+  },
   plugins: [
     react(),
     mode === "development" && componentTagger(),
@@ -64,6 +93,8 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
+        // Skip large chunks to avoid SW size issues
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3MB
         runtimeCaching: [
           {
             // Cache Google Fonts
@@ -95,30 +126,14 @@ export default defineConfig(({ mode }) => ({
             }
           },
           {
-            // Network first for Supabase API calls
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-            handler: "NetworkFirst",
+            // Stale-while-revalidate for API calls (faster perceived speed)
+            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/i,
+            handler: "StaleWhileRevalidate",
             options: {
               cacheName: "supabase-api-cache",
               expiration: {
                 maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 // 24 hours
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              },
-              networkTimeoutSeconds: 10
-            }
-          },
-          {
-            // Cache learning materials storage
-            urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/v1\/object\/public\/learning-materials\/.*/i,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "learning-materials-cache",
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+                maxAgeSeconds: 60 * 5 // 5 minutes
               },
               cacheableResponse: {
                 statuses: [0, 200]
@@ -126,14 +141,54 @@ export default defineConfig(({ mode }) => ({
             }
           },
           {
-            // Cache images
+            // Network first for auth calls
+            urlPattern: /^https:\/\/.*\.supabase\.co\/auth\/.*/i,
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "supabase-auth-cache",
+              networkTimeoutSeconds: 5,
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+          {
+            // Cache learning materials storage - long term
+            urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/v1\/object\/public\/learning-materials\/.*/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "learning-materials-cache",
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              },
+              rangeRequests: true // Support PDF partial requests
+            }
+          },
+          {
+            // Cache images with long expiry
             urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
             handler: "CacheFirst",
             options: {
               cacheName: "images-cache",
               expiration: {
-                maxEntries: 60,
+                maxEntries: 100,
                 maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+              }
+            }
+          },
+          {
+            // Cache JS/CSS chunks
+            urlPattern: /\.(?:js|css)$/i,
+            handler: "StaleWhileRevalidate",
+            options: {
+              cacheName: "static-resources",
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 60 * 24 * 7 // 7 days
               }
             }
           }
