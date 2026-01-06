@@ -36,8 +36,18 @@ export default defineConfig(({ mode }) => ({
   },
   // Optimize dependencies
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom', '@supabase/supabase-js'],
-    exclude: ['react-pdf'], // Exclude heavy deps from pre-bundling
+    include: [
+      'react', 
+      'react-dom', 
+      'react-router-dom', 
+      '@supabase/supabase-js',
+      'react-pdf',
+      'pdfjs-dist',
+    ],
+  },
+  // Handle CommonJS dependencies
+  ssr: {
+    noExternal: ['react-pdf'],
   },
   plugins: [
     react(),
