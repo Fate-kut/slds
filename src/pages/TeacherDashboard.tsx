@@ -12,6 +12,7 @@ import { ActivityLog } from '@/components/ActivityLog';
 import { StatusBadge } from '@/components/StatusBadge';
 import { MaterialUploader } from '@/components/LearningLibrary';
 import { TeacherAssignments, TeacherExams } from '@/components/Assignments';
+import { ClassManagement } from '@/components/ClassManagement';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -242,6 +243,10 @@ const TeacherDashboard: React.FC = () => {
               <LayoutDashboard size={16} />
               Dashboard
             </TabsTrigger>
+            <TabsTrigger value="classes" className="gap-2">
+              <Users size={16} />
+              Classes
+            </TabsTrigger>
             <TabsTrigger value="assignments" className="gap-2">
               <FileText size={16} />
               Assignments
@@ -255,6 +260,10 @@ const TeacherDashboard: React.FC = () => {
               Materials
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="classes">
+            <ClassManagement />
+          </TabsContent>
 
           <TabsContent value="dashboard">
 
