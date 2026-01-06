@@ -1,8 +1,9 @@
 /**
  * Offline Context - Manages offline state, download queue, and sync
+ * Optimized for performance with memoization and batching
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { registerServiceWorker } from '@/lib/offline/serviceWorker';
 import {
   getAllMaterialsMetadata,
@@ -30,13 +31,14 @@ interface OfflineContextType {
   downloadedMaterials: MaterialMetadata[];
   downloadProgress: Map<string, DownloadProgress>;
   storageUsage: { used: number; materials: number };
-  updatesAvailable: Map<string, number>; // materialId -> new version
+  updatesAvailable: Map<string, number>;
   pendingSyncCount: number;
   downloadMaterial: (material: LearningMaterial) => Promise<boolean>;
   removeMaterialOffline: (id: string) => Promise<void>;
   getMaterialFile: (id: string) => Promise<Blob | null>;
   checkForUpdates: () => Promise<void>;
   refreshDownloadedMaterials: () => Promise<void>;
+  downloadMultipleMaterials: (materials: LearningMaterial[]) => Promise<void>;
 }
 
 interface LearningMaterial {
@@ -63,6 +65,34 @@ export const OfflineProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [updatesAvailable, setUpdatesAvailable] = useState<Map<string, number>>(new Map());
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const { toast } = useToast();
+  
+  // Refs for debouncing and preventing duplicate fetches
+  const refreshDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const isRefreshingRef = useRef(false);
+
+  // Debounced refresh for downloaded materials
+  const refreshDownloadedMaterials = useCallback(async () => {
+    if (isRefreshingRef.current) return;
+    
+    // Clear any pending debounce
+    if (refreshDebounceRef.current) {
+      clearTimeout(refreshDebounceRef.current);
+    }
+    
+    isRefreshingRef.current = true;
+    try {
+      const [materials, usage] = await Promise.all([
+        getAllMaterialsMetadata(),
+        getStorageUsage()
+      ]);
+      setDownloadedMaterials(materials);
+      setStorageUsage(usage);
+    } catch (error) {
+      console.error('Error loading downloaded materials:', error);
+    } finally {
+      isRefreshingRef.current = false;
+    }
+  }, []);
 
   // Update pending sync count
   const refreshPendingSyncCount = useCallback(async () => {
@@ -74,7 +104,7 @@ export const OfflineProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, []);
 
-  // Initialize service worker
+  // Initialize service worker once
   useEffect(() => {
     registerServiceWorker().then((registration) => {
       if (registration) {
@@ -83,7 +113,7 @@ export const OfflineProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   }, []);
 
-  // Online/offline detection
+  // Online/offline detection with debounced handlers
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
@@ -91,7 +121,8 @@ export const OfflineProvider: React.FC<{ children: React.ReactNode }> = ({ child
         title: 'Back Online',
         description: 'Your internet connection has been restored.',
       });
-      checkForUpdates();
+      // Delay update check to let connection stabilize
+      setTimeout(() => checkForUpdates(), 1000);
     };
 
     const handleOffline = () => {
@@ -115,36 +146,31 @@ export const OfflineProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Load downloaded materials on mount
   useEffect(() => {
     refreshDownloadedMaterials();
-  }, []);
-
-  const refreshDownloadedMaterials = useCallback(async () => {
-    try {
-      const materials = await getAllMaterialsMetadata();
-      setDownloadedMaterials(materials);
-      const usage = await getStorageUsage();
-      setStorageUsage(usage);
-    } catch (error) {
-      console.error('Error loading downloaded materials:', error);
-    }
-  }, []);
+    refreshPendingSyncCount();
+  }, [refreshDownloadedMaterials, refreshPendingSyncCount]);
 
   const downloadMaterial = useCallback(async (material: LearningMaterial): Promise<boolean> => {
     const materialId = material.id;
 
-    // Set initial progress
     setDownloadProgress((prev) => {
       const next = new Map(prev);
-      next.set(materialId, { materialId, progress: 0, status: 'downloading' });
+      next.set(materialId, { materialId, progress: 10, status: 'downloading' });
       return next;
     });
 
     try {
-      // Get public URL for the file
       const { data: urlData } = supabase.storage
         .from('learning-materials')
         .getPublicUrl(material.file_url);
 
       const fileUrl = urlData.publicUrl;
+
+      // Update progress to show we're fetching
+      setDownloadProgress((prev) => {
+        const next = new Map(prev);
+        next.set(materialId, { materialId, progress: 30, status: 'downloading' });
+        return next;
+      });
 
       const success = await downloadAndSaveMaterial(
         {
@@ -169,14 +195,20 @@ export const OfflineProvider: React.FC<{ children: React.ReactNode }> = ({ child
           return next;
         });
 
-        await refreshDownloadedMaterials();
+        // Debounce refresh to batch multiple downloads
+        if (refreshDebounceRef.current) {
+          clearTimeout(refreshDebounceRef.current);
+        }
+        refreshDebounceRef.current = setTimeout(() => {
+          refreshDownloadedMaterials();
+        }, 500);
 
         toast({
           title: 'Download Complete',
           description: `"${material.title}" is now available offline.`,
         });
 
-        // Clear progress after a delay
+        // Clear progress after delay
         setTimeout(() => {
           setDownloadProgress((prev) => {
             const next = new Map(prev);
@@ -208,6 +240,19 @@ export const OfflineProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [refreshDownloadedMaterials, toast]);
 
+  // Batch download multiple materials with concurrency control
+  const downloadMultipleMaterials = useCallback(async (materials: LearningMaterial[]): Promise<void> => {
+    const CONCURRENT_DOWNLOADS = 3;
+    
+    for (let i = 0; i < materials.length; i += CONCURRENT_DOWNLOADS) {
+      const batch = materials.slice(i, i + CONCURRENT_DOWNLOADS);
+      await Promise.all(batch.map(m => downloadMaterial(m)));
+    }
+    
+    // Final refresh after all downloads
+    await refreshDownloadedMaterials();
+  }, [downloadMaterial, refreshDownloadedMaterials]);
+
   const removeMaterialOffline = useCallback(async (id: string): Promise<void> => {
     try {
       await removeMaterial(id);
@@ -230,7 +275,8 @@ export const OfflineProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const file = await getFile(id);
       if (file) {
-        await updateLastAccessed(id);
+        // Update last accessed in background
+        updateLastAccessed(id).catch(console.error);
         return file.blob;
       }
       return null;
@@ -278,28 +324,39 @@ export const OfflineProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [isOnline, toast]);
 
-  // Load pending sync count on mount
-  useEffect(() => {
-    refreshPendingSyncCount();
-  }, [refreshPendingSyncCount]);
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    isOnline,
+    isServiceWorkerReady,
+    downloadedMaterials,
+    downloadProgress,
+    storageUsage,
+    updatesAvailable,
+    pendingSyncCount,
+    downloadMaterial,
+    removeMaterialOffline,
+    getMaterialFile,
+    checkForUpdates,
+    refreshDownloadedMaterials,
+    downloadMultipleMaterials,
+  }), [
+    isOnline,
+    isServiceWorkerReady,
+    downloadedMaterials,
+    downloadProgress,
+    storageUsage,
+    updatesAvailable,
+    pendingSyncCount,
+    downloadMaterial,
+    removeMaterialOffline,
+    getMaterialFile,
+    checkForUpdates,
+    refreshDownloadedMaterials,
+    downloadMultipleMaterials,
+  ]);
 
   return (
-    <OfflineContext.Provider
-      value={{
-        isOnline,
-        isServiceWorkerReady,
-        downloadedMaterials,
-        downloadProgress,
-        storageUsage,
-        updatesAvailable,
-        pendingSyncCount,
-        downloadMaterial,
-        removeMaterialOffline,
-        getMaterialFile,
-        checkForUpdates,
-        refreshDownloadedMaterials,
-      }}
-    >
+    <OfflineContext.Provider value={contextValue}>
       {children}
     </OfflineContext.Provider>
   );

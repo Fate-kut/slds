@@ -1,8 +1,9 @@
 /**
  * MaterialCard - Individual learning material card with download/open controls
+ * Optimized with React.memo for performance
  */
 
-import React from 'react';
+import React, { memo, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +17,7 @@ import {
   Eye,
   CloudOff,
   AlertCircle,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -57,7 +59,64 @@ interface MaterialCardProps {
   isOnline: boolean;
 }
 
-export const MaterialCard: React.FC<MaterialCardProps> = ({
+// Memoized format function
+const formatBytes = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+// File icon component for better performance
+const FileIcon = memo(({ fileType }: { fileType: string }) => {
+  const colorClass = useMemo(() => {
+    switch (fileType) {
+      case 'pdf': return 'text-red-500';
+      case 'slides': return 'text-orange-500';
+      case 'notes': return 'text-blue-500';
+      default: return 'text-muted-foreground';
+    }
+  }, [fileType]);
+
+  return <FileText className={cn('h-8 w-8', colorClass)} />;
+});
+FileIcon.displayName = 'FileIcon';
+
+// Status badges component
+const StatusBadges = memo(({ 
+  isDownloaded, 
+  hasUpdate, 
+  isOnline 
+}: { 
+  isDownloaded: boolean; 
+  hasUpdate: boolean; 
+  isOnline: boolean;
+}) => (
+  <div className="absolute top-2 right-2 flex gap-1">
+    {isDownloaded && !hasUpdate && (
+      <Badge variant="secondary" className="gap-1 text-xs">
+        <Check className="h-3 w-3" />
+        Offline
+      </Badge>
+    )}
+    {hasUpdate && (
+      <Badge variant="default" className="gap-1 text-xs animate-pulse">
+        <RefreshCw className="h-3 w-3" />
+        Update
+      </Badge>
+    )}
+    {!isOnline && !isDownloaded && (
+      <Badge variant="outline" className="gap-1 text-xs">
+        <CloudOff className="h-3 w-3" />
+        Unavailable
+      </Badge>
+    )}
+  </div>
+));
+StatusBadges.displayName = 'StatusBadges';
+
+export const MaterialCard: React.FC<MaterialCardProps> = memo(({
   material,
   isDownloaded,
   downloadProgress,
@@ -67,64 +126,30 @@ export const MaterialCard: React.FC<MaterialCardProps> = ({
   onRemove,
   isOnline,
 }) => {
-  const formatBytes = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  const getFileIcon = () => {
-    switch (material.file_type) {
-      case 'pdf':
-        return <FileText className="h-8 w-8 text-red-500" />;
-      case 'slides':
-        return <FileText className="h-8 w-8 text-orange-500" />;
-      case 'notes':
-        return <FileText className="h-8 w-8 text-blue-500" />;
-      default:
-        return <FileText className="h-8 w-8 text-muted-foreground" />;
-    }
-  };
-
   const isDownloading = downloadProgress?.status === 'downloading';
   const downloadFailed = downloadProgress?.status === 'failed';
+
+  const formattedSize = useMemo(() => formatBytes(material.file_size), [material.file_size]);
+
+  const handleOpen = useCallback(() => onOpen(), [onOpen]);
+  const handleDownload = useCallback(() => onDownload(), [onDownload]);
+  const handleRemove = useCallback(() => onRemove(), [onRemove]);
 
   return (
     <Card
       className={cn(
-        'relative overflow-hidden transition-all hover:shadow-md',
+        'relative overflow-hidden transition-all duration-200 hover:shadow-md group',
         isDownloaded && 'border-primary/30 bg-primary/5',
-        downloadFailed && 'border-destructive/30'
+        downloadFailed && 'border-destructive/30',
+        isDownloading && 'animate-pulse'
       )}
     >
-      {/* Status indicators */}
-      <div className="absolute top-2 right-2 flex gap-1">
-        {isDownloaded && !hasUpdate && (
-          <Badge variant="secondary" className="gap-1 text-xs">
-            <Check className="h-3 w-3" />
-            Downloaded
-          </Badge>
-        )}
-        {hasUpdate && (
-          <Badge variant="default" className="gap-1 text-xs">
-            <RefreshCw className="h-3 w-3" />
-            Update
-          </Badge>
-        )}
-        {!isOnline && !isDownloaded && (
-          <Badge variant="outline" className="gap-1 text-xs">
-            <CloudOff className="h-3 w-3" />
-            Offline
-          </Badge>
-        )}
-      </div>
+      <StatusBadges isDownloaded={isDownloaded} hasUpdate={hasUpdate} isOnline={isOnline} />
 
       <CardContent className="pt-6">
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0 p-2 bg-muted rounded-lg">
-            {getFileIcon()}
+            <FileIcon fileType={material.file_type} />
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-sm line-clamp-2 pr-16">{material.title}</h3>
@@ -139,7 +164,7 @@ export const MaterialCard: React.FC<MaterialCardProps> = ({
               </p>
             )}
             <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-              <span>{formatBytes(material.file_size)}</span>
+              <span>{formattedSize}</span>
               <span>•</span>
               <span className="capitalize">{material.file_type}</span>
               <span>•</span>
@@ -152,7 +177,10 @@ export const MaterialCard: React.FC<MaterialCardProps> = ({
         {isDownloading && (
           <div className="mt-3">
             <Progress value={downloadProgress?.progress || 0} className="h-2" />
-            <p className="text-xs text-muted-foreground mt-1">Downloading...</p>
+            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Downloading...
+            </p>
           </div>
         )}
 
@@ -171,20 +199,20 @@ export const MaterialCard: React.FC<MaterialCardProps> = ({
             <Button
               size="sm"
               className="flex-1"
-              onClick={onOpen}
+              onClick={handleOpen}
               disabled={!isDownloaded && !isOnline}
             >
               <Eye className="h-4 w-4 mr-1" />
-              Open
+              {isDownloaded ? 'Open' : 'Unavailable'}
             </Button>
             {isDownloaded && (
               <>
                 {hasUpdate && isOnline && (
-                  <Button size="sm" variant="outline" onClick={onDownload}>
+                  <Button size="sm" variant="outline" onClick={handleDownload} title="Update">
                     <RefreshCw className="h-4 w-4" />
                   </Button>
                 )}
-                <Button size="sm" variant="ghost" onClick={onRemove}>
+                <Button size="sm" variant="ghost" onClick={handleRemove} title="Remove offline">
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
               </>
@@ -194,16 +222,27 @@ export const MaterialCard: React.FC<MaterialCardProps> = ({
           <Button
             size="sm"
             className="flex-1"
-            onClick={onDownload}
+            onClick={handleDownload}
             disabled={isDownloading || !isOnline}
           >
-            <Download className="h-4 w-4 mr-1" />
-            {isDownloading ? 'Downloading...' : 'Download'}
+            {isDownloading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                Downloading...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4 mr-1" />
+                Download for Offline
+              </>
+            )}
           </Button>
         )}
       </CardFooter>
     </Card>
   );
-};
+});
+
+MaterialCard.displayName = 'MaterialCard';
 
 export default MaterialCard;
