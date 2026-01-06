@@ -11,6 +11,7 @@ import { LockerCard } from '@/components/LockerCard';
 import { DeskInterface } from '@/components/DeskInterface';
 import { ActivityLog } from '@/components/ActivityLog';
 import { LearningLibrary } from '@/components/LearningLibrary';
+import { StudentClasses } from '@/components/ClassManagement';
 import { StudentAssignments, StudentExams } from '@/components/Assignments';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -109,6 +110,9 @@ const StudentDashboard: React.FC = () => {
                     </CardContent>
                   </Card>
                 )}
+
+                {/* My Classes */}
+                <StudentClasses />
 
                 {/* Quick stats */}
                 <Card>
