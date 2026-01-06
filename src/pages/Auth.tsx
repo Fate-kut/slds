@@ -291,19 +291,7 @@ const Auth: React.FC = () => {
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-role">Role</Label>
-                      <Select value={signupRole} onValueChange={(value: UserRole) => setSignupRole(value)}>
-                        <SelectTrigger className="h-11">
-                          <SelectValue placeholder="Select your role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="student">Student</SelectItem>
-                          <SelectItem value="teacher">Teacher</SelectItem>
-                          <SelectItem value="admin">Administrator</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    {/* Role is automatically set to 'student' - admin approval required for role upgrades */}
 
                     {signupError && (
                       <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm animate-fade-in">
