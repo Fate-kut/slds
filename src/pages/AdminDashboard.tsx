@@ -10,6 +10,7 @@ import { LockerCard } from '@/components/LockerCard';
 import { ActivityLog } from '@/components/ActivityLog';
 import { StatusBadge } from '@/components/StatusBadge';
 import { MaterialUploader } from '@/components/LearningLibrary';
+import { SeedMaterials } from '@/components/Admin';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -579,7 +580,8 @@ const AdminDashboard: React.FC = () => {
           </TabsContent>
 
           {/* Materials Tab */}
-          <TabsContent value="materials" className="mt-4">
+          <TabsContent value="materials" className="mt-4 space-y-6">
+            <SeedMaterials />
             <MaterialUploader />
           </TabsContent>
 
