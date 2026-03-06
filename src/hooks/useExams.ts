@@ -188,6 +188,21 @@ export function useExams() {
 
   const getExamQuestions = async (examId: string): Promise<ExamQuestion[]> => {
     try {
+      // Students use RPC to avoid exposing correct_answer
+      if (profile?.role === 'student') {
+        const { data, error } = await supabase
+          .rpc('get_exam_questions_for_student', { p_exam_id: examId });
+
+        if (error) throw error;
+        
+        return (data || []).map((q: any) => ({
+          ...q,
+          correct_answer: null,
+          options: q.options as string[] | null,
+        }));
+      }
+
+      // Teachers/admins get full access including correct_answer
       const { data, error } = await supabase
         .from('exam_questions')
         .select('*')
