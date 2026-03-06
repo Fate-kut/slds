@@ -624,6 +624,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_exam_questions_for_student: {
+        Args: { p_exam_id: string }
+        Returns: {
+          exam_id: string
+          id: string
+          options: Json
+          order_index: number
+          points: number
+          question_text: string
+          question_type: string
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
