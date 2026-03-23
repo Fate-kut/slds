@@ -13,7 +13,7 @@ export function useExams() {
   const [exams, setExams] = useState<Exam[]>([]);
   const [examSubmissions, setExamSubmissions] = useState<ExamSubmission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const autoSubmitTimers = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const autoSubmitTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const fetchExams = useCallback(async () => {
     if (!profile) return;

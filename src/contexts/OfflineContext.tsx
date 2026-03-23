@@ -67,7 +67,7 @@ export const OfflineProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const { toast } = useToast();
   
   // Refs for debouncing and preventing duplicate fetches
-  const refreshDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const refreshDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isRefreshingRef = useRef(false);
 
   // Debounced refresh for downloaded materials
