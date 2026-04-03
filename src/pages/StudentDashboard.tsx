@@ -5,6 +5,7 @@
  */
 
 import React, { useState } from 'react';
+import SEOHead from '@/components/SEOHead';
 import { useApp } from '@/contexts/AppContext';
 import { Header } from '@/components/Header';
 import { LockerCard } from '@/components/LockerCard';
@@ -41,6 +42,7 @@ const StudentDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title="Student Dashboard" description="Access your locker, assignments, exams, and learning materials." path="/student" noIndex />
       <Header />
       
       <main className="container mx-auto px-4 py-6 space-y-6">

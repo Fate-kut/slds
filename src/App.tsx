@@ -3,11 +3,13 @@
  * Sets up routing, providers, and handles authentication-based navigation
  */
 
+import React, { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { HelmetProvider } from "react-helmet-async";
 import { Analytics } from "@vercel/analytics/react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppProvider } from "@/contexts/AppContext";
@@ -15,11 +17,13 @@ import { OfflineProvider } from "@/contexts/OfflineContext";
 import OfflineIndicator from "@/components/OfflineIndicator";
 import UpdatePrompt from "@/components/UpdatePrompt";
 import Index from "@/pages/Index";
-import Auth from "@/pages/Auth";
-import StudentDashboard from "@/pages/StudentDashboard";
-import TeacherDashboard from "@/pages/TeacherDashboard";
-import AdminDashboard from "@/pages/AdminDashboard";
-import NotFound from "@/pages/NotFound";
+
+// Lazy-loaded pages for code splitting
+const Auth = lazy(() => import("@/pages/Auth"));
+const StudentDashboard = lazy(() => import("@/pages/StudentDashboard"));
+const TeacherDashboard = lazy(() => import("@/pages/TeacherDashboard"));
+const AdminDashboard = lazy(() => import("@/pages/AdminDashboard"));
+const NotFound = lazy(() => import("@/pages/NotFound"));
 
 const queryClient = new QueryClient();
 
@@ -72,73 +76,83 @@ const AuthRoute: React.FC<AuthRouteProps> = ({ children }) => {
   return <>{children}</>;
 };
 
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+  </div>
+);
+
 const AppRoutes = () => {
   return (
-    <Routes>
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <Index />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/auth"
-        element={
-          <AuthRoute>
-            <Auth />
-          </AuthRoute>
-        }
-      />
-      <Route
-        path="/student"
-        element={
-          <ProtectedRoute allowedRoles={['student']}>
-            <StudentDashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/teacher"
-        element={
-          <ProtectedRoute allowedRoles={['teacher']}>
-            <TeacherDashboard />
-          </ProtectedRoute>
-        }
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Index />
+            </ProtectedRoute>
+          }
         />
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute allowedRoles={['admin']}>
-            <AdminDashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+        <Route
+          path="/auth"
+          element={
+            <AuthRoute>
+              <Auth />
+            </AuthRoute>
+          }
+        />
+        <Route
+          path="/student"
+          element={
+            <ProtectedRoute allowedRoles={['student']}>
+              <StudentDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/teacher"
+          element={
+            <ProtectedRoute allowedRoles={['teacher']}>
+              <TeacherDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Suspense>
   );
 };
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner position="top-right" />
-      <BrowserRouter>
-        <AuthProvider>
-          <AppProvider>
-            <OfflineProvider>
-              <OfflineIndicator />
-              <UpdatePrompt />
-              <AppRoutes />
-              <Analytics />
-            </OfflineProvider>
-          </AppProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <HelmetProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner position="top-right" />
+        <BrowserRouter>
+          <AuthProvider>
+            <AppProvider>
+              <OfflineProvider>
+                <OfflineIndicator />
+                <UpdatePrompt />
+                <AppRoutes />
+                <Analytics />
+              </OfflineProvider>
+            </AppProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </HelmetProvider>
 );
 
 export default App;
