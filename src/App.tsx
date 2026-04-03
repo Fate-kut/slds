@@ -76,51 +76,59 @@ const AuthRoute: React.FC<AuthRouteProps> = ({ children }) => {
   return <>{children}</>;
 };
 
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+  </div>
+);
+
 const AppRoutes = () => {
   return (
-    <Routes>
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <Index />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/auth"
-        element={
-          <AuthRoute>
-            <Auth />
-          </AuthRoute>
-        }
-      />
-      <Route
-        path="/student"
-        element={
-          <ProtectedRoute allowedRoles={['student']}>
-            <StudentDashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/teacher"
-        element={
-          <ProtectedRoute allowedRoles={['teacher']}>
-            <TeacherDashboard />
-          </ProtectedRoute>
-        }
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Index />
+            </ProtectedRoute>
+          }
         />
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute allowedRoles={['admin']}>
-            <AdminDashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+        <Route
+          path="/auth"
+          element={
+            <AuthRoute>
+              <Auth />
+            </AuthRoute>
+          }
+        />
+        <Route
+          path="/student"
+          element={
+            <ProtectedRoute allowedRoles={['student']}>
+              <StudentDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/teacher"
+          element={
+            <ProtectedRoute allowedRoles={['teacher']}>
+              <TeacherDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Suspense>
   );
 };
 
