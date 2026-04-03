@@ -5,6 +5,7 @@
  */
 
 import React, { useState } from 'react';
+import SEOHead from '@/components/SEOHead';
 import { useApp } from '@/contexts/AppContext';
 import { Header } from '@/components/Header';
 import { LockerCard } from '@/components/LockerCard';
