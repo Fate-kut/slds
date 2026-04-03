@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import SEOHead from '@/components/SEOHead';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
