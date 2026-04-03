@@ -216,6 +216,7 @@ const TeacherDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title="Teacher Dashboard" description="Manage exams, assignments, lockers, and monitor student activity." path="/teacher" noIndex />
       <Header />
       
       <main className="container mx-auto px-4 py-6 space-y-6">

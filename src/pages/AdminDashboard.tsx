@@ -253,6 +253,7 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title="Admin Dashboard" description="Full system administration for the Smart Locker Desk System." path="/admin" noIndex />
       <Header />
       
       <main className="container mx-auto px-4 py-6 space-y-6">
