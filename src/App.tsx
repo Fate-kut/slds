@@ -3,11 +3,13 @@
  * Sets up routing, providers, and handles authentication-based navigation
  */
 
+import React, { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { HelmetProvider } from "react-helmet-async";
 import { Analytics } from "@vercel/analytics/react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppProvider } from "@/contexts/AppContext";
@@ -15,11 +17,13 @@ import { OfflineProvider } from "@/contexts/OfflineContext";
 import OfflineIndicator from "@/components/OfflineIndicator";
 import UpdatePrompt from "@/components/UpdatePrompt";
 import Index from "@/pages/Index";
-import Auth from "@/pages/Auth";
-import StudentDashboard from "@/pages/StudentDashboard";
-import TeacherDashboard from "@/pages/TeacherDashboard";
-import AdminDashboard from "@/pages/AdminDashboard";
-import NotFound from "@/pages/NotFound";
+
+// Lazy-loaded pages for code splitting
+const Auth = lazy(() => import("@/pages/Auth"));
+const StudentDashboard = lazy(() => import("@/pages/StudentDashboard"));
+const TeacherDashboard = lazy(() => import("@/pages/TeacherDashboard"));
+const AdminDashboard = lazy(() => import("@/pages/AdminDashboard"));
+const NotFound = lazy(() => import("@/pages/NotFound"));
 
 const queryClient = new QueryClient();
 
