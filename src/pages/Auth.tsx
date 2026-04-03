@@ -120,6 +120,7 @@ const Auth: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <SEOHead title="Sign In" description="Sign in to the Smart Locker Desk System to access your classroom dashboard." path="/auth" />
       {/* Header */}
       <header className="p-4 border-b border-border">
         <div className="container mx-auto flex items-center gap-3">
