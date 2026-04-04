@@ -354,7 +354,7 @@ const AdminDashboard: React.FC = () => {
 
         {/* Main Tabs */}
         <Tabs defaultValue="lockers" className="animate-slide-up">
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
             <TabsTrigger value="lockers" className="gap-2">
               <Lock size={16} />
               <span className="hidden sm:inline">Lockers</span>
@@ -366,6 +366,10 @@ const AdminDashboard: React.FC = () => {
             <TabsTrigger value="materials" className="gap-2">
               <BookOpen size={16} />
               <span className="hidden sm:inline">Materials</span>
+            </TabsTrigger>
+            <TabsTrigger value="feedback" className="gap-2">
+              <MessageSquare size={16} />
+              <span className="hidden sm:inline">Feedback</span>
             </TabsTrigger>
             <TabsTrigger value="controls" className="gap-2">
               <Settings size={16} />
