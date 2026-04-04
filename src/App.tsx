@@ -159,6 +159,7 @@ const App = () => (
                 <OfflineIndicator />
                 <UpdatePrompt />
                 <AppRoutes />
+                <FeedbackWidget />
                 <Analytics />
               </OfflineProvider>
             </AppProvider>

@@ -323,6 +323,9 @@ const Auth: React.FC = () => {
           </Card>
         </div>
       </main>
+
+      {/* Contact Section */}
+      <ContactSection />
     </div>
   );
 };
