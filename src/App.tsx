@@ -3,7 +3,7 @@
  * Sets up routing, providers, and handles authentication-based navigation
  */
 
-import React, { Suspense, lazy } from "react";
+import React, { Suspense, lazy, useCallback } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -16,6 +16,7 @@ import { AppProvider } from "@/contexts/AppContext";
 import { OfflineProvider } from "@/contexts/OfflineContext";
 import OfflineIndicator from "@/components/OfflineIndicator";
 import UpdatePrompt from "@/components/UpdatePrompt";
+import FeedbackWidget from "@/components/FeedbackWidget";
 import Index from "@/pages/Index";
 
 // Lazy-loaded pages for code splitting
@@ -23,7 +24,16 @@ const Auth = lazy(() => import("@/pages/Auth"));
 const StudentDashboard = lazy(() => import("@/pages/StudentDashboard"));
 const TeacherDashboard = lazy(() => import("@/pages/TeacherDashboard"));
 const AdminDashboard = lazy(() => import("@/pages/AdminDashboard"));
+const Feedback = lazy(() => import("@/pages/Feedback"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
+
+// Preload functions for route prefetching on hover
+const preloadStudent = () => import("@/pages/StudentDashboard");
+const preloadTeacher = () => import("@/pages/TeacherDashboard");
+const preloadAdmin = () => import("@/pages/AdminDashboard");
+const preloadFeedback = () => import("@/pages/Feedback");
+
+export { preloadStudent, preloadTeacher, preloadAdmin, preloadFeedback };
 
 const queryClient = new QueryClient();
 
