@@ -53,6 +53,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import FeedbackManagement from '@/components/Admin/FeedbackManagement';
 import { 
   Shield, 
   Clock, 
