@@ -29,15 +29,22 @@ const ContactWidget: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from('feedback' as any).insert({
+      const { data, error } = await supabase.from('feedback' as any).insert({
         name: name.trim(),
         email: email.trim(),
         subject: 'Contact Form Submission',
         message: message.trim(),
         type: 'contact',
-      } as any);
+      } as any).select().single();
 
       if (error) throw error;
+
+      // Trigger notification
+      try {
+        await supabase.functions.invoke('notify-feedback', { body: { record: data } });
+      } catch (e) {
+        console.warn('Notification failed, feedback still saved');
+      }
 
       toast({
         title: 'Message sent!',
