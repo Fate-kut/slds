@@ -34,16 +34,23 @@ const FeedbackWidget: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from('feedback' as any).insert({
+      const { data, error } = await supabase.from('feedback' as any).insert({
         user_id: profile.id,
         name: profile.name,
         email: CONTACT_EMAIL,
         subject: subject.trim(),
         message: message.trim(),
         type,
-      } as any);
+      } as any).select().single();
 
       if (error) throw error;
+
+      // Trigger notification
+      try {
+        await supabase.functions.invoke('notify-feedback', { body: { record: data } });
+      } catch (e) {
+        console.warn('Notification failed, feedback still saved');
+      }
 
       toast({
         title: 'Feedback submitted!',
