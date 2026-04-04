@@ -17,7 +17,7 @@ import { Shield, User, KeyRound, AlertCircle, Fingerprint, Mail, UserPlus, WifiO
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import ContactSection from '@/components/ContactSection';
+import ContactWidget from '@/components/ContactWidget';
 
 // Validation schemas
 const loginSchema = z.object({
