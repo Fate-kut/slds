@@ -17,6 +17,7 @@ import { Shield, User, KeyRound, AlertCircle, Fingerprint, Mail, UserPlus, WifiO
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import ContactSection from '@/components/ContactSection';
 
 // Validation schemas
 const loginSchema = z.object({
@@ -322,6 +323,9 @@ const Auth: React.FC = () => {
           </Card>
         </div>
       </main>
+
+      {/* Contact Section */}
+      <ContactSection />
     </div>
   );
 };
