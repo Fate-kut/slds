@@ -593,6 +593,11 @@ const AdminDashboard: React.FC = () => {
             <MaterialUploader />
           </TabsContent>
 
+          {/* Feedback Tab */}
+          <TabsContent value="feedback" className="space-y-4 mt-4">
+            <FeedbackManagement />
+          </TabsContent>
+
           {/* Controls Tab */}
           <TabsContent value="controls" className="space-y-4 mt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
