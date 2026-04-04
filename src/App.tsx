@@ -136,6 +136,10 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/feedback"
+          element={<Feedback />}
+        />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
